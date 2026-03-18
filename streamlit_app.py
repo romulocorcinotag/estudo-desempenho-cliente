@@ -211,20 +211,47 @@ def load_portfolio(path):
     data = data.sort_values("Date").reset_index(drop=True)
     first_valid = data[data["Patrimonio"] > 0].index[0]
     data = data.loc[first_valid:].reset_index(drop=True)
-    # Suaviza patrimonio: interpola zeros e spikes isolados
+    # Suaviza patrimonio: interpola somente dados claramente errados
     pat = data["Patrimonio"].copy()
-    # 1) Substitui zeros/negativos por NaN e interpola
+    # 1) Zeros/negativos sao erros de report -> marca como NaN
     pat[pat <= 0] = np.nan
+    # 2) Detecta valores que caem >50% E voltam >50% em ate 5 dias (erro,
+    #    nao resgate real — resgates reais nao voltam)
+    vals = pat.values.copy()
+    i = 0
+    while i < len(vals):
+        if np.isnan(vals[i]):
+            i += 1
+            continue
+        # Encontra proximo valor valido anterior
+        if i == 0:
+            i += 1
+            continue
+        prev = vals[i - 1] if not np.isnan(vals[i - 1]) else None
+        if prev is None:
+            i += 1
+            continue
+        change = vals[i] / prev - 1
+        # Queda brusca >50%? Verifica se e temporaria (volta em ate 5 dias)
+        if change < -0.50:
+            # Procura recuperacao nos proximos 5 dias
+            recovered = False
+            for j in range(i + 1, min(i + 6, len(vals))):
+                if not np.isnan(vals[j]) and vals[j] > 0:
+                    if vals[j] / prev > 0.70:  # Voltou a pelo menos 70% do anterior
+                        # Marca todos de i ate j-1 como NaN (dados errados)
+                        for k in range(i, j):
+                            vals[k] = np.nan
+                        recovered = True
+                        i = j
+                        break
+            if not recovered:
+                i += 1
+        else:
+            i += 1
+    pat = pd.Series(vals, index=pat.index)
+    # 3) Interpola NaNs
     pat = pat.interpolate(method="linear").ffill().bfill()
-    # 2) Remove V-shapes: variação >30% ida e volta
-    for _ in range(3):  # multiplas passadas para pegar sequencias
-        for i in range(1, len(pat) - 1):
-            prev, cur, nxt = pat.iloc[i - 1], pat.iloc[i], pat.iloc[i + 1]
-            if prev > 0 and nxt > 0:
-                drop = abs(cur / prev - 1)
-                recover = abs(nxt / cur - 1)
-                if drop > 0.30 and recover > 0.30:
-                    pat.iloc[i] = (prev + nxt) / 2
     data["Patrimonio"] = pat
     return data
 
