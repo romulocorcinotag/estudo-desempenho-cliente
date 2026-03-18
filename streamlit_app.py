@@ -278,31 +278,6 @@ def load_portfolio(path):
 
 
 @st.cache_data(ttl=86400)
-def _load_ibov_bcb(start, end):
-    chunks = []
-    d = start
-    while d <= end:
-        d_end = min(d + timedelta(days=3650), end)
-        di, df_str = d.strftime("%d/%m/%Y"), d_end.strftime("%d/%m/%Y")
-        url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.7/dados?formato=json&dataInicial={di}&dataFinal={df_str}"
-        try:
-            r = requests.get(url, timeout=30, headers={"Accept": "application/json"})
-            if r.status_code == 200:
-                chunks.extend(r.json())
-        except Exception:
-            pass
-        d = d_end + timedelta(days=1)
-    if not chunks:
-        return pd.DataFrame(columns=["Date", "Close"])
-    df = pd.DataFrame(chunks)
-    df["data"] = pd.to_datetime(df["data"], format="%d/%m/%Y")
-    df["valor"] = df["valor"].astype(float)
-    df = df.sort_values("data").drop_duplicates(subset="data").reset_index(drop=True)
-    df.columns = ["Date", "Close"]
-    return df
-
-
-@st.cache_data(ttl=86400)
 def load_ibov(start, end):
     try:
         ibov = yf.download("^BVSP", start=start, end=end + timedelta(days=5), progress=False)
@@ -322,7 +297,7 @@ def load_ibov(start, end):
                 return close
     except Exception:
         pass
-    return _load_ibov_bcb(start, end)
+    return pd.DataFrame(columns=["Date", "Close"])
 
 
 @st.cache_data(ttl=86400)
@@ -498,6 +473,17 @@ ibov_raw = load_ibov(full_start, full_end)
 cdi_raw = load_cdi(full_start, full_end)
 
 ibov_ok = len(ibov_raw) > 0 and ibov_raw["Close"].notna().any()
+
+# Debug: mostrar dados do Ibovespa carregados
+if ibov_ok:
+    _ibov_first = ibov_raw["Close"].iloc[0]
+    _ibov_last = ibov_raw["Close"].iloc[-1]
+    _ibov_ret = _ibov_last / _ibov_first - 1
+    _ibov_n = len(ibov_raw)
+    st.sidebar.markdown(f"""
+<div style="text-align:center;font-size:0.55rem;color:rgba(245,244,240,0.35) !important;margin-top:1rem;">
+Ibov: {_ibov_n} pts | {_ibov_first:.0f} → {_ibov_last:.0f} | {_ibov_ret:.1%}
+</div>""", unsafe_allow_html=True)
 
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
