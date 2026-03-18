@@ -337,10 +337,11 @@ def rolling_return(s, w):
     return s / s.shift(w) - 1
 
 
-def annualized_return(total_ret, days):
-    if days <= 0 or np.isnan(total_ret):
+def annualized_return(total_ret, cal_days):
+    """Retorno anualizado usando dias corridos (calendario)."""
+    if cal_days <= 0 or np.isnan(total_ret):
         return 0.0
-    return (1 + total_ret) ** (252 / days) - 1
+    return (1 + total_ret) ** (365.25 / cal_days) - 1
 
 
 def annualized_vol(rets):
