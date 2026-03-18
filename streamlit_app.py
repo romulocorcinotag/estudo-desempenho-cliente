@@ -474,16 +474,6 @@ cdi_raw = load_cdi(full_start, full_end)
 
 ibov_ok = len(ibov_raw) > 0 and ibov_raw["Close"].notna().any()
 
-# Debug: mostrar dados do Ibovespa carregados
-if ibov_ok:
-    _ibov_first = ibov_raw["Close"].iloc[0]
-    _ibov_last = ibov_raw["Close"].iloc[-1]
-    _ibov_ret = _ibov_last / _ibov_first - 1
-    _ibov_n = len(ibov_raw)
-    st.sidebar.markdown(f"""
-<div style="text-align:center;font-size:0.55rem;color:rgba(245,244,240,0.35) !important;margin-top:1rem;">
-Ibov: {_ibov_n} pts | {_ibov_first:.0f} → {_ibov_last:.0f} | {_ibov_ret:.1%}
-</div>""", unsafe_allow_html=True)
 
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
