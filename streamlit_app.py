@@ -176,12 +176,12 @@ st.markdown(f"""
 
     /* Captions */
     .stCaption, div[data-testid="stCaptionContainer"] {{
-        text-align: center !important;
+        text-align: left !important;
         color: {TAG_CINZA} !important;
-        font-size: 0.82rem !important;
-        max-width: 800px;
-        margin: 0 auto 1rem auto !important;
-        line-height: 1.5;
+        font-size: 0.78rem !important;
+        margin: -0.3rem 0 0.8rem 0 !important;
+        line-height: 1.6;
+        font-style: italic;
     }}
 
     /* Sidebar image centered */
@@ -687,11 +687,7 @@ rolling_windows = {"1 Ano": 252, "3 Anos": 756, "5 Anos": 1260}
 for roll_label, roll_window in rolling_windows.items():
     if n_days >= roll_window:
         section_title(f"Retorno Rolling {roll_label}")
-        st.caption(
-            f"Janela movel de {roll_label.lower()}: cada ponto mostra o retorno acumulado nos ultimos {roll_window} dias uteis. "
-            f"O retorno medio dessa janela representa a **experiencia media do cotista** que permaneceu investido por {roll_label.lower()} "
-            f"em qualquer momento do historico — um indicador mais robusto que o retorno acumulado total."
-        )
+        st.caption(f"Cada ponto mostra o retorno nos ultimos {roll_window} d.u. O retorno medio representa a experiencia media do cotista que permaneceu investido por {roll_label.lower()}.")
 
         port_roll = rolling_return(1 + merged["Portfolio_cum"], roll_window)
         cdi_roll = rolling_return(1 + merged["CDI_cum"], roll_window)
