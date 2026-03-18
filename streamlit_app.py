@@ -382,9 +382,7 @@ ibov_ok = len(ibov_raw) > 0 and ibov_raw["Close"].notna().any()
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 
 if os.path.exists(_logo_path):
-    _sb_left, _sb_center, _sb_right = st.sidebar.columns([1, 2, 1])
-    with _sb_center:
-        st.image(_logo_path, width=120)
+    st.sidebar.image(_logo_path, width=120)
 
 st.sidebar.markdown(f'<div style="border-top:1px solid {TAG_LARANJA}44;margin:0 0 1rem 0;"></div>', unsafe_allow_html=True)
 st.sidebar.markdown(f'<p style="font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.5rem;">Periodo de Analise</p>', unsafe_allow_html=True)
