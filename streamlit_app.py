@@ -214,7 +214,7 @@ def load_portfolio(path):
     pat = data["Patrimonio"].copy()
     for i in range(1, len(pat)):
         if pat.iloc[i] > 0 and pat.iloc[i - 1] > 0:
-            if abs(pat.iloc[i] / pat.iloc[i - 1] - 1) > 0.20:
+            if abs(pat.iloc[i] / pat.iloc[i - 1] - 1) > 0.40:
                 pat.iloc[i] = pat.iloc[i - 1]
     data["Patrimonio"] = pat
     return data
