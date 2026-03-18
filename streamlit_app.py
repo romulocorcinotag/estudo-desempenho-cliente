@@ -7,6 +7,7 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import warnings
 import os
+
 warnings.filterwarnings("ignore")
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,19 +19,14 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── TAG Brand Colors (from Guia da Marca 2021) ──────────────────────────────
+# ── TAG Brand Colors ─────────────────────────────────────────────────────────
 TAG_VERMELHO = "#630D24"
 TAG_VERMELHO_LIGHT = "#8A1E3A"
-TAG_OFFWHITE = "#E6E4DB"
+TAG_OFFWHITE = "#F5F4F0"
 TAG_LARANJA = "#FF8853"
-TAG_ROXO = "#A485F2"
-TAG_AZUL_CLARO = "#58C6F5"
-TAG_AZUL = "#5C85F7"
 TAG_AZUL_ESCURO = "#002A6E"
-TAG_AMARELO = "#FFBB00"
 TAG_ROSA = "#ED5A6E"
-TAG_VERDE = "#6BDE97"
-TAG_TEAL = "#477C88"
+TAG_ROXO = "#A485F2"
 TAG_CINZA = "#6A6864"
 TAG_BRANCO = "#FFFFFF"
 
@@ -41,113 +37,158 @@ CHART_COLORS = {
     "bench67": TAG_ROSA,
 }
 
-# ── TAG Logo path ───────────────────────────────────────────────────────────
 _logo_path = os.path.join(_DIR, "tag_logo.png")
 
-
-# ── TAG Brand CSS ────────────────────────────────────────────────────────────
+# ── CSS Profissional ─────────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    /* Global */
     .stApp {{
         background-color: {TAG_OFFWHITE};
-        font-family: 'Tahoma', 'Inter', sans-serif;
+        font-family: 'Inter', 'Tahoma', sans-serif;
     }}
     header[data-testid="stHeader"] {{
         background-color: {TAG_VERMELHO};
     }}
+
+    /* Sidebar */
     section[data-testid="stSidebar"] {{
-        background-color: {TAG_VERMELHO};
+        background: linear-gradient(180deg, {TAG_VERMELHO} 0%, {TAG_VERMELHO_LIGHT} 100%);
     }}
     section[data-testid="stSidebar"] * {{
-        color: {TAG_OFFWHITE} !important;
+        color: #F5F4F0 !important;
     }}
-    section[data-testid="stSidebar"] .stSelectbox > div > div,
-    section[data-testid="stSidebar"] .stDateInput > div > div > div {{
-        background-color: {TAG_VERMELHO_LIGHT};
-        border-color: {TAG_LARANJA};
+    section[data-testid="stSidebar"] .stSelectbox > div > div {{
+        background-color: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,136,83,0.4);
+        border-radius: 8px;
     }}
+
+    /* Metric cards */
     div[data-testid="stMetric"] {{
         background-color: {TAG_BRANCO};
-        border: 1px solid #E0DDD5;
-        border-radius: 10px;
-        padding: 1rem 1.2rem;
+        border: 1px solid #E8E6DD;
+        border-radius: 12px;
+        padding: 1.2rem 1.4rem;
         border-left: 4px solid {TAG_VERMELHO};
-        box-shadow: 0 1px 4px rgba(99,13,36,0.06);
+        box-shadow: 0 2px 8px rgba(99,13,36,0.06);
+        text-align: center;
     }}
     div[data-testid="stMetric"] label {{
-        color: {TAG_VERMELHO} !important;
-        font-weight: 700 !important;
-        font-size: 0.82rem !important;
+        color: {TAG_CINZA} !important;
+        font-weight: 600 !important;
+        font-size: 0.72rem !important;
         text-transform: uppercase;
-        letter-spacing: 0.03em;
+        letter-spacing: 0.06em;
     }}
     div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
         color: {TAG_AZUL_ESCURO} !important;
         font-weight: 700 !important;
-        font-size: 1.6rem !important;
+        font-size: 1.5rem !important;
     }}
     div[data-testid="stMetric"] div[data-testid="stMetricDelta"] {{
-        font-size: 0.85rem !important;
+        font-size: 0.82rem !important;
+        justify-content: center;
     }}
-    .stMarkdown h2, .stMarkdown h3 {{
-        color: {TAG_VERMELHO} !important;
+
+    /* Section headers */
+    .section-title {{
+        color: {TAG_VERMELHO};
+        font-size: 1.15rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding-bottom: 0.5rem;
+        margin: 2rem 0 1rem 0;
         border-bottom: 2px solid {TAG_LARANJA};
-        padding-bottom: 0.4rem;
-        font-weight: 700 !important;
-        font-size: 1.3rem !important;
     }}
+
+    /* Charts container */
     .stPlotlyChart {{
         background-color: {TAG_BRANCO};
         border-radius: 12px;
-        padding: 0.5rem;
-        box-shadow: 0 1px 4px rgba(99,13,36,0.04);
+        padding: 0.8rem;
+        box-shadow: 0 2px 8px rgba(99,13,36,0.04);
         border: 1px solid #E8E6DD;
     }}
+
     /* Header banner */
-    .tag-header-banner {{
+    .tag-header {{
         background: linear-gradient(135deg, {TAG_VERMELHO} 0%, {TAG_VERMELHO_LIGHT} 100%);
-        padding: 1.8rem 2.5rem;
-        border-radius: 12px;
-        margin-bottom: 1.5rem;
+        padding: 2rem 2.5rem;
+        border-radius: 16px;
+        text-align: center;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 4px 16px rgba(99,13,36,0.15);
     }}
-    .tag-header-banner h1 {{
+    .tag-header h1 {{
         color: #FFFFFF !important;
-        font-size: 1.8rem !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.05em;
-        margin: 0 !important;
+        font-size: 2rem !important;
+        font-weight: 300 !important;
+        letter-spacing: 0.08em;
+        margin: 0.8rem 0 0 0 !important;
         padding: 0 !important;
         border: none !important;
-        text-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }}
-    .tag-header-banner p {{
-        color: #FFBB00 !important;
-        font-size: 0.95rem !important;
-        margin: 0.6rem 0 0 0 !important;
-        font-weight: 500 !important;
+    .tag-header .subtitle {{
+        color: {TAG_LARANJA};
+        font-size: 0.9rem;
+        margin-top: 0.6rem;
+        font-weight: 400;
+        letter-spacing: 0.02em;
     }}
-    /* Footer banner */
-    .tag-footer-banner {{
-        background: linear-gradient(135deg, {TAG_VERMELHO} 0%, {TAG_VERMELHO_LIGHT} 100%);
-        color: #FFFFFF !important;
-        padding: 1.2rem 2rem;
-        border-radius: 12px;
-        margin-top: 1.5rem;
-        font-size: 0.85rem;
-        text-align: center;
+    .tag-header .divider {{
+        width: 60px;
+        height: 2px;
+        background: {TAG_LARANJA};
+        margin: 1rem auto 0 auto;
+    }}
+
+    /* Disclaimer */
+    .disclaimer {{
+        background: {TAG_BRANCO};
+        border-left: 4px solid {TAG_LARANJA};
+        border-radius: 0 12px 12px 0;
+        padding: 1rem 1.5rem;
+        margin-top: 2rem;
+        font-size: 0.75rem;
+        color: {TAG_CINZA};
         line-height: 1.6;
     }}
-    .tag-footer-banner * {{
-        color: #FFFFFF !important;
+
+    /* Footer */
+    .tag-footer {{
+        background: linear-gradient(135deg, {TAG_VERMELHO} 0%, {TAG_VERMELHO_LIGHT} 100%);
+        padding: 1.5rem 2rem;
+        border-radius: 16px;
+        margin-top: 1.5rem;
+        text-align: center;
+        box-shadow: 0 4px 16px rgba(99,13,36,0.1);
     }}
+    .tag-footer p {{
+        color: rgba(255,255,255,0.85) !important;
+        font-size: 0.8rem !important;
+        margin: 0 !important;
+        line-height: 1.7;
+    }}
+
+    /* Hide streamlit defaults */
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
+    .stMarkdown h2, .stMarkdown h3 {{
+        display: none;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+def section_title(text):
+    st.markdown(f'<div class="section-title">{text}</div>', unsafe_allow_html=True)
+
 
 @st.cache_data(ttl=86400)
 def load_portfolio(path):
@@ -170,13 +211,10 @@ def load_portfolio(path):
     data = data.sort_values("Date").reset_index(drop=True)
     first_valid = data[data["Patrimonio"] > 0].index[0]
     data = data.loc[first_valid:].reset_index(drop=True)
-
-    # Suaviza picos bruscos no patrimonio (>40% em um dia -> repete anterior)
     pat = data["Patrimonio"].copy()
     for i in range(1, len(pat)):
         if pat.iloc[i] > 0 and pat.iloc[i - 1] > 0:
-            change = abs(pat.iloc[i] / pat.iloc[i - 1] - 1)
-            if change > 0.40:
+            if abs(pat.iloc[i] / pat.iloc[i - 1] - 1) > 0.20:
                 pat.iloc[i] = pat.iloc[i - 1]
     data["Patrimonio"] = pat
     return data
@@ -184,17 +222,12 @@ def load_portfolio(path):
 
 @st.cache_data(ttl=86400)
 def _load_ibov_bcb(start, end):
-    """Fallback: load Ibovespa daily close from BCB series 7 (Ibovespa fechamento)."""
     chunks = []
     d = start
     while d <= end:
         d_end = min(d + timedelta(days=3650), end)
-        di = d.strftime("%d/%m/%Y")
-        df_str = d_end.strftime("%d/%m/%Y")
-        url = (
-            f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.7/dados"
-            f"?formato=json&dataInicial={di}&dataFinal={df_str}"
-        )
+        di, df_str = d.strftime("%d/%m/%Y"), d_end.strftime("%d/%m/%Y")
+        url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.7/dados?formato=json&dataInicial={di}&dataFinal={df_str}"
         try:
             r = requests.get(url, timeout=30, headers={"Accept": "application/json"})
             if r.status_code == 200:
@@ -214,7 +247,6 @@ def _load_ibov_bcb(start, end):
 
 @st.cache_data(ttl=86400)
 def load_ibov(start, end):
-    # Try yfinance first
     try:
         ibov = yf.download("^BVSP", start=start, end=end + timedelta(days=5), progress=False)
         if not ibov.empty:
@@ -233,7 +265,6 @@ def load_ibov(start, end):
                 return close
     except Exception:
         pass
-    # Fallback to BCB
     return _load_ibov_bcb(start, end)
 
 
@@ -243,12 +274,8 @@ def load_cdi(start, end):
     d = start
     while d <= end:
         d_end = min(d + timedelta(days=3650), end)
-        di = d.strftime("%d/%m/%Y")
-        df_str = d_end.strftime("%d/%m/%Y")
-        url = (
-            f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados"
-            f"?formato=json&dataInicial={di}&dataFinal={df_str}"
-        )
+        di, df_str = d.strftime("%d/%m/%Y"), d_end.strftime("%d/%m/%Y")
+        url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial={di}&dataFinal={df_str}"
         try:
             r = requests.get(url, timeout=30, headers={"Accept": "application/json"})
             if r.status_code == 200:
@@ -266,23 +293,22 @@ def load_cdi(start, end):
     return cdi
 
 
-def calc_drawdown(series):
-    peak = series.cummax()
-    return (series - peak) / peak
+def calc_drawdown(s):
+    return (s - s.cummax()) / s.cummax()
 
 
-def rolling_return(series, window):
-    return series / series.shift(window) - 1
+def rolling_return(s, w):
+    return s / s.shift(w) - 1
 
 
-def annualized_return(total_return, days):
-    if days <= 0 or np.isnan(total_return):
+def annualized_return(total_ret, days):
+    if days <= 0 or np.isnan(total_ret):
         return 0.0
-    return (1 + total_return) ** (252 / days) - 1
+    return (1 + total_ret) ** (252 / days) - 1
 
 
-def annualized_vol(daily_returns):
-    return daily_returns.std() * np.sqrt(252)
+def annualized_vol(rets):
+    return rets.std() * np.sqrt(252)
 
 
 def tag_chart_layout(fig, height=450, yaxis_title="", ticksuffix="%"):
@@ -293,11 +319,11 @@ def tag_chart_layout(fig, height=450, yaxis_title="", ticksuffix="%"):
         yaxis_ticksuffix=ticksuffix,
         plot_bgcolor=TAG_BRANCO,
         paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Tahoma, Inter, sans-serif", size=12, color=TAG_AZUL_ESCURO),
+        font=dict(family="Inter, Tahoma, sans-serif", size=12, color=TAG_AZUL_ESCURO),
         legend=dict(
-            orientation="h", y=1.12,
+            orientation="h", y=1.12, x=0.5, xanchor="center",
             font=dict(size=11, color=TAG_AZUL_ESCURO),
-            bgcolor="rgba(255,255,255,0.7)",
+            bgcolor="rgba(255,255,255,0.85)",
             bordercolor="#E8E6DD", borderwidth=1,
         ),
         xaxis=dict(gridcolor="#F0EEE8", showgrid=True, linecolor="#E0DDD5"),
@@ -308,19 +334,19 @@ def tag_chart_layout(fig, height=450, yaxis_title="", ticksuffix="%"):
 
 
 def style_table(df):
-    html = '<div style="overflow-x:auto;border-radius:10px;border:1px solid #E0DDD5;box-shadow:0 1px 4px rgba(99,13,36,0.06);margin:0.5rem 0 1rem 0;">'
-    html += '<table style="width:100%;border-collapse:collapse;font-family:Tahoma,sans-serif;font-size:0.85rem;">'
+    html = '<div style="overflow-x:auto;border-radius:12px;border:1px solid #E8E6DD;box-shadow:0 2px 8px rgba(99,13,36,0.05);margin:0.5rem auto 1.5rem auto;max-width:900px;">'
+    html += '<table style="width:100%;border-collapse:collapse;font-family:Inter,Tahoma,sans-serif;font-size:0.85rem;">'
     html += '<thead><tr>'
     for col in df.columns:
-        html += f'<th style="background:{TAG_VERMELHO};color:{TAG_OFFWHITE};padding:0.65rem 0.9rem;text-align:center;font-weight:600;font-size:0.8rem;letter-spacing:0.03em;text-transform:uppercase;border:none;">{col}</th>'
+        html += f'<th style="background:{TAG_VERMELHO};color:#F5F4F0;padding:0.75rem 1rem;text-align:center;font-weight:600;font-size:0.75rem;letter-spacing:0.05em;text-transform:uppercase;border:none;">{col}</th>'
     html += '</tr></thead><tbody>'
     for i, (_, row) in enumerate(df.iterrows()):
-        bg = TAG_BRANCO if i % 2 == 0 else "#F8F7F4"
+        bg = TAG_BRANCO if i % 2 == 0 else "#FAFAF8"
         html += '<tr>'
         for j, val in enumerate(row):
             fw = "600" if j == 0 else "400"
             color = TAG_VERMELHO if j == 0 else TAG_AZUL_ESCURO
-            html += f'<td style="background:{bg};color:{color};padding:0.55rem 0.9rem;text-align:center;font-weight:{fw};border-bottom:1px solid #E8E6DD;">{val}</td>'
+            html += f'<td style="background:{bg};color:{color};padding:0.6rem 1rem;text-align:center;font-weight:{fw};border-bottom:1px solid #F0EEE8;">{val}</td>'
         html += '</tr>'
     html += '</tbody></table></div>'
     return html
@@ -364,7 +390,14 @@ def build_merged(port_df, ibov_df, cdi_df):
     return merged
 
 
-# ── Load Full Data ───────────────────────────────────────────────────────────
+def fmt_pct(v):
+    return f"{v:.2%}" if not np.isnan(v) else "\u2014"
+
+def fmt_f(v):
+    return f"{v:.2f}" if not np.isnan(v) else "\u2014"
+
+
+# ── Load Data ────────────────────────────────────────────────────────────────
 
 _CSV = os.path.join(_DIR, "portfolio_data.csv")
 _XLS = r"C:\Users\romulo.corcino_tagin\Downloads\ReportHistoricoCota (3).xls"
@@ -379,13 +412,14 @@ cdi_raw = load_cdi(full_start, full_end)
 
 ibov_ok = len(ibov_raw) > 0 and ibov_raw["Close"].notna().any()
 
+
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 
 if os.path.exists(_logo_path):
-    st.sidebar.image(_logo_path, width=120)
+    st.sidebar.image(_logo_path, width=130)
 
-st.sidebar.markdown(f'<div style="border-top:1px solid {TAG_LARANJA}44;margin:0 0 1rem 0;"></div>', unsafe_allow_html=True)
-st.sidebar.markdown(f'<p style="font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.5rem;">Periodo de Analise</p>', unsafe_allow_html=True)
+st.sidebar.markdown("")
+st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;">Periodo de Analise</p>', unsafe_allow_html=True)
 
 preset = st.sidebar.selectbox(
     "Periodo",
@@ -395,7 +429,6 @@ preset = st.sidebar.selectbox(
 )
 
 today_ref = full_end
-
 if preset == "YTD":
     sel_start, sel_end = pd.Timestamp(today_ref.year, 1, 1), today_ref
 elif preset == "Ultimo Ano":
@@ -415,17 +448,15 @@ else:
 sel_start = max(sel_start, full_start)
 sel_end = min(sel_end, full_end)
 
+st.sidebar.markdown("---")
 st.sidebar.markdown(f"""
-<div style="margin-top:2rem;padding-top:1rem;border-top:1px solid {TAG_LARANJA}44;text-align:center;">
-    <p style="font-size:0.7rem;color:{TAG_OFFWHITE}88 !important;line-height:1.6;">
-        Dados atualizados ate<br>
-        <span style="color:{TAG_LARANJA} !important;font-weight:600;">{full_end.strftime('%d/%m/%Y')}</span>
-    </p>
+<div style="text-align:center;">
+    <p style="font-size:0.65rem;color:rgba(245,244,240,0.5) !important;margin:0;">Dados atualizados ate</p>
+    <p style="font-size:0.85rem;color:{TAG_LARANJA} !important;font-weight:600;margin:0.2rem 0 0 0;">{full_end.strftime('%d/%m/%Y')}</p>
 </div>
 """, unsafe_allow_html=True)
 
 port_filtered = port_full[(port_full["Date"] >= sel_start) & (port_full["Date"] <= sel_end)].reset_index(drop=True)
-
 if len(port_filtered) < 2:
     st.error("Periodo selecionado nao tem dados suficientes.")
     st.stop()
@@ -437,23 +468,24 @@ end_date = merged["Date"].iloc[-1]
 n_days = len(merged) - 1
 total_days = (end_date - start_date).days
 
-# ── Header ───────────────────────────────────────────────────────────────────
 
-_hdr_col1, _hdr_col2 = st.columns([1, 5])
-with _hdr_col1:
-    if os.path.exists(_logo_path):
-        st.image(_logo_path, width=130)
-with _hdr_col2:
-    st.markdown(f"""<div class="tag-header-banner">
+# ══════════════════════════════════════════════════════════════════════════════
+# HEADER
+# ══════════════════════════════════════════════════════════════════════════════
+
+st.markdown(f"""<div class="tag-header">
 <h1>Estudo de Desempenho</h1>
-<p>{start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')}
-&nbsp;&middot;&nbsp; {total_days:,} dias corridos &nbsp;&middot;&nbsp; {n_days:,} dias uteis &nbsp;&middot;&nbsp; ~{total_days / 365:.1f} anos</p>
+<div class="subtitle">{start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')} &nbsp;&bull;&nbsp; {total_days:,} dias corridos &nbsp;&bull;&nbsp; {n_days:,} dias uteis &nbsp;&bull;&nbsp; ~{total_days / 365:.1f} anos</div>
+<div class="divider"></div>
 </div>""", unsafe_allow_html=True)
 
 if not ibov_ok:
-    st.warning("Dados do Ibovespa indisponiveis no momento. Exibindo apenas Carteira vs CDI.")
+    st.warning("Dados do Ibovespa indisponiveis. Exibindo apenas Carteira vs CDI.")
 
-# ── KPIs ─────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+# KPIs — RESUMO
+# ══════════════════════════════════════════════════════════════════════════════
 
 port_total = merged["Portfolio_cum"].iloc[-1]
 ibov_total = merged["Ibov_cum"].iloc[-1] if ibov_ok else np.nan
@@ -482,97 +514,74 @@ port_dd = calc_drawdown(1 + merged["Portfolio_cum"])
 ibov_dd = calc_drawdown(1 + merged["Ibov_cum"]) if ibov_ok else pd.Series(0, index=merged.index)
 bench67_dd = calc_drawdown(1 + merged["Bench67_cum"]) if ibov_ok else pd.Series(0, index=merged.index)
 
-def fmt_pct(v):
-    return f"{v:.2%}" if not np.isnan(v) else "—"
+section_title("Retorno Acumulado")
 
-def fmt_f(v):
-    return f"{v:.2f}" if not np.isnan(v) else "—"
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Carteira", fmt_pct(port_total), f"anual: {fmt_pct(port_ann)}")
+c2.metric("Ibovespa", fmt_pct(ibov_total), f"anual: {fmt_pct(ibov_ann)}")
+c3.metric("CDI", fmt_pct(cdi_total), f"anual: {fmt_pct(cdi_ann)}")
+c4.metric("67% Ibov + 33% CDI", fmt_pct(bench67_total), f"anual: {fmt_pct(bench67_ann)}")
 
-st.subheader("Resumo Geral")
+section_title("Risco")
 
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.metric("Carteira", fmt_pct(port_total), f"anual: {fmt_pct(port_ann)}")
-with col2:
-    st.metric("Ibovespa", fmt_pct(ibov_total), f"anual: {fmt_pct(ibov_ann)}")
-with col3:
-    st.metric("CDI", fmt_pct(cdi_total), f"anual: {fmt_pct(cdi_ann)}")
-with col4:
-    st.metric("67% Ibov + 33% CDI", fmt_pct(bench67_total), f"anual: {fmt_pct(bench67_ann)}")
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Vol. Carteira", fmt_pct(port_vol))
+c2.metric("Vol. Ibovespa", fmt_pct(ibov_vol))
+c3.metric("Vol. CDI", "~0%")
+c4.metric("Vol. Bench 67/33", fmt_pct(bench67_vol))
 
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.metric("Vol. Anual Carteira", fmt_pct(port_vol))
-    st.metric("Max Drawdown", fmt_pct(port_dd.min()))
-    st.metric("Sharpe", fmt_f(port_sharpe))
-with col2:
-    st.metric("Vol. Anual Ibovespa", fmt_pct(ibov_vol))
-    st.metric("Max Drawdown", fmt_pct(ibov_dd.min()) if ibov_ok else "—")
-    st.metric("Sharpe", fmt_f(ibov_sharpe))
-with col3:
-    st.metric("Vol. Anual CDI", "~0%")
-    st.metric("Max Drawdown", "~0%")
-    st.metric("Sharpe", "—")
-with col4:
-    st.metric("Vol. Anual Bench 67/33", fmt_pct(bench67_vol))
-    st.metric("Max Drawdown", fmt_pct(bench67_dd.min()) if ibov_ok else "—")
-    st.metric("Sharpe", fmt_f(bench67_sharpe))
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Max DD Carteira", fmt_pct(port_dd.min()))
+c2.metric("Max DD Ibovespa", fmt_pct(ibov_dd.min()) if ibov_ok else "\u2014")
+c3.metric("Max DD CDI", "~0%")
+c4.metric("Max DD Bench 67/33", fmt_pct(bench67_dd.min()) if ibov_ok else "\u2014")
 
-# ── Grafico 1: Retorno Acumulado ────────────────────────────────────────────
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Sharpe Carteira", fmt_f(port_sharpe))
+c2.metric("Sharpe Ibovespa", fmt_f(ibov_sharpe))
+c3.metric("Sharpe CDI", "\u2014")
+c4.metric("Sharpe Bench 67/33", fmt_f(bench67_sharpe))
 
-st.subheader("Retorno Acumulado (%)")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# GRAFICO 1 — Retorno Acumulado
+# ══════════════════════════════════════════════════════════════════════════════
+
+section_title("Retorno Acumulado (%)")
 
 fig1 = go.Figure()
-fig1.add_trace(go.Scatter(
-    x=merged["Date"], y=merged["Portfolio_cum"] * 100,
-    name="Carteira", line=dict(width=2.5, color=CHART_COLORS["carteira"]),
-))
+fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Portfolio_cum"] * 100, name="Carteira", line=dict(width=2.5, color=CHART_COLORS["carteira"])))
 if ibov_ok:
-    fig1.add_trace(go.Scatter(
-        x=merged["Date"], y=merged["Ibov_cum"] * 100,
-        name="Ibovespa", line=dict(width=1.8, color=CHART_COLORS["ibovespa"]),
-    ))
-fig1.add_trace(go.Scatter(
-    x=merged["Date"], y=merged["CDI_cum"] * 100,
-    name="CDI", line=dict(width=1.8, color=CHART_COLORS["cdi"], dash="dot"),
-))
+    fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Ibov_cum"] * 100, name="Ibovespa", line=dict(width=1.8, color=CHART_COLORS["ibovespa"])))
+fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["CDI_cum"] * 100, name="CDI", line=dict(width=1.8, color=CHART_COLORS["cdi"], dash="dot")))
 if ibov_ok:
-    fig1.add_trace(go.Scatter(
-        x=merged["Date"], y=merged["Bench67_cum"] * 100,
-        name="67% Ibov + 33% CDI", line=dict(width=1.8, color=CHART_COLORS["bench67"], dash="dash"),
-    ))
+    fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench67_cum"] * 100, name="67% Ibov + 33% CDI", line=dict(width=1.8, color=CHART_COLORS["bench67"], dash="dash")))
 tag_chart_layout(fig1, height=500, yaxis_title="Retorno Acumulado (%)")
 st.plotly_chart(fig1, use_container_width=True)
 
-# ── Grafico 2: Drawdown ─────────────────────────────────────────────────────
 
-st.subheader("Drawdown")
+# ══════════════════════════════════════════════════════════════════════════════
+# GRAFICO 2 — Drawdown
+# ══════════════════════════════════════════════════════════════════════════════
+
+section_title("Drawdown")
 
 fig2 = go.Figure()
-fig2.add_trace(go.Scatter(
-    x=merged["Date"], y=port_dd * 100,
-    name="Carteira", fill="tozeroy",
-    line=dict(color=CHART_COLORS["carteira"]),
-    fillcolor="rgba(0,42,110,0.12)",
-))
+fig2.add_trace(go.Scatter(x=merged["Date"], y=port_dd * 100, name="Carteira", fill="tozeroy", line=dict(color=CHART_COLORS["carteira"]), fillcolor="rgba(0,42,110,0.10)"))
 if ibov_ok:
-    fig2.add_trace(go.Scatter(
-        x=merged["Date"], y=ibov_dd * 100,
-        name="Ibovespa", line=dict(color=CHART_COLORS["ibovespa"], width=1),
-    ))
-    fig2.add_trace(go.Scatter(
-        x=merged["Date"], y=bench67_dd * 100,
-        name="67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1, dash="dash"),
-    ))
+    fig2.add_trace(go.Scatter(x=merged["Date"], y=ibov_dd * 100, name="Ibovespa", line=dict(color=CHART_COLORS["ibovespa"], width=1)))
+    fig2.add_trace(go.Scatter(x=merged["Date"], y=bench67_dd * 100, name="67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1, dash="dash")))
 tag_chart_layout(fig2, height=350, yaxis_title="Drawdown (%)")
 st.plotly_chart(fig2, use_container_width=True)
 
-# ── Grafico 3: Retornos Anuais ──────────────────────────────────────────────
 
-st.subheader("Retornos Anuais")
+# ══════════════════════════════════════════════════════════════════════════════
+# GRAFICO 3 — Retornos Anuais
+# ══════════════════════════════════════════════════════════════════════════════
+
+section_title("Retornos Anuais")
 
 merged["Year"] = merged["Date"].dt.year
-
 yearly = merged.groupby("Year").agg(
     Port_start=("Portfolio_cum", lambda x: 1 + x.iloc[0]),
     Port_end=("Portfolio_cum", lambda x: 1 + x.iloc[-1]),
@@ -606,33 +615,41 @@ if ibov_ok:
 yearly_display = yearly[cols_display].copy()
 yearly_display.columns = col_names
 for c in col_names[1:]:
-    yearly_display[c] = yearly_display[c].apply(lambda x: f"{x:.2%}" if not np.isnan(x) else "—")
+    yearly_display[c] = yearly_display[c].apply(lambda x: f"{x:.2%}" if not np.isnan(x) else "\u2014")
 yearly_display["Ano"] = yearly_display["Ano"].astype(str)
 st.markdown(style_table(yearly_display), unsafe_allow_html=True)
 
-# ── Grafico 4: Rolling 12 meses ─────────────────────────────────────────────
 
-if n_days >= 252:
-    st.subheader("Retorno Rolling 12 Meses (~252 dias uteis)")
+# ══════════════════════════════════════════════════════════════════════════════
+# GRAFICO 4 — Rolling 12M
+# ══════════════════════════════════════════════════════════════════════════════
 
-    roll_window = 252
-    merged["Port_roll12"] = rolling_return(1 + merged["Portfolio_cum"], roll_window)
-    merged["CDI_roll12"] = rolling_return(1 + merged["CDI_cum"], roll_window)
+rolling_windows = {"1 Ano": 252, "3 Anos": 756, "5 Anos": 1260}
 
-    fig4 = go.Figure()
-    fig4.add_trace(go.Scatter(x=merged["Date"], y=merged["Port_roll12"] * 100, name="Carteira", line=dict(color=CHART_COLORS["carteira"], width=2)))
-    if ibov_ok:
-        merged["Ibov_roll12"] = rolling_return(1 + merged["Ibov_cum"], roll_window)
-        merged["Bench67_roll12"] = rolling_return(1 + merged["Bench67_cum"], roll_window)
-        fig4.add_trace(go.Scatter(x=merged["Date"], y=merged["Ibov_roll12"] * 100, name="Ibovespa", line=dict(color=CHART_COLORS["ibovespa"], width=1.5)))
-        fig4.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench67_roll12"] * 100, name="67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1.5, dash="dash")))
-    fig4.add_trace(go.Scatter(x=merged["Date"], y=merged["CDI_roll12"] * 100, name="CDI", line=dict(color=CHART_COLORS["cdi"], width=1.5, dash="dot")))
-    tag_chart_layout(fig4, height=400, yaxis_title="Retorno 12M (%)")
-    st.plotly_chart(fig4, use_container_width=True)
+for roll_label, roll_window in rolling_windows.items():
+    if n_days >= roll_window:
+        section_title(f"Retorno Rolling {roll_label}")
 
-# ── Grafico 5: Excesso de Retorno ────────────────────────────────────────────
+        port_roll = rolling_return(1 + merged["Portfolio_cum"], roll_window)
+        cdi_roll = rolling_return(1 + merged["CDI_cum"], roll_window)
 
-st.subheader("Excesso de Retorno Acumulado vs Benchmarks")
+        fig_roll = go.Figure()
+        fig_roll.add_trace(go.Scatter(x=merged["Date"], y=port_roll * 100, name="Carteira", line=dict(color=CHART_COLORS["carteira"], width=2)))
+        if ibov_ok:
+            ibov_roll = rolling_return(1 + merged["Ibov_cum"], roll_window)
+            bench_roll = rolling_return(1 + merged["Bench67_cum"], roll_window)
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=ibov_roll * 100, name="Ibovespa", line=dict(color=CHART_COLORS["ibovespa"], width=1.5)))
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=bench_roll * 100, name="67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1.5, dash="dash")))
+        fig_roll.add_trace(go.Scatter(x=merged["Date"], y=cdi_roll * 100, name="CDI", line=dict(color=CHART_COLORS["cdi"], width=1.5, dash="dot")))
+        tag_chart_layout(fig_roll, height=400, yaxis_title=f"Retorno {roll_label} (%)")
+        st.plotly_chart(fig_roll, use_container_width=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# GRAFICO 5 — Excesso de Retorno
+# ══════════════════════════════════════════════════════════════════════════════
+
+section_title("Excesso de Retorno vs Benchmarks")
 
 fig5 = go.Figure()
 if ibov_ok:
@@ -641,30 +658,30 @@ fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged[
 if ibov_ok:
     fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench67_cum"]) * 100, name="vs 67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1.8)))
 fig5.add_hline(y=0, line_dash="dash", line_color=TAG_CINZA)
-tag_chart_layout(fig5, height=400, yaxis_title="Excesso de Retorno (p.p.)", ticksuffix=" p.p.")
+tag_chart_layout(fig5, height=400, yaxis_title="Excesso (p.p.)", ticksuffix=" p.p.")
 st.plotly_chart(fig5, use_container_width=True)
 
-# ── Grafico 6: Patrimonio ───────────────────────────────────────────────────
 
-st.subheader("Evolucao do Patrimonio (R$)")
+# ══════════════════════════════════════════════════════════════════════════════
+# GRAFICO 6 — Patrimonio
+# ══════════════════════════════════════════════════════════════════════════════
+
+section_title("Evolucao do Patrimonio (R$)")
 
 fig6 = go.Figure()
-fig6.add_trace(go.Scatter(
-    x=merged["Date"], y=merged["Patrimonio"],
-    name="Patrimonio", fill="tozeroy",
-    line=dict(color=TAG_AZUL_ESCURO, width=2),
-    fillcolor="rgba(0,42,110,0.08)",
-))
+fig6.add_trace(go.Scatter(x=merged["Date"], y=merged["Patrimonio"], name="Patrimonio", fill="tozeroy", line=dict(color=TAG_AZUL_ESCURO, width=2), fillcolor="rgba(0,42,110,0.08)"))
 tag_chart_layout(fig6, height=350, yaxis_title="R$", ticksuffix="")
 fig6.update_layout(yaxis_tickformat=",.0f", yaxis_tickprefix="R$ ")
 st.plotly_chart(fig6, use_container_width=True)
 
-# ── Tabela: Retornos por Periodo ─────────────────────────────────────────────
 
-st.subheader("Retornos por Periodo")
+# ══════════════════════════════════════════════════════════════════════════════
+# TABELA — Retornos por Periodo
+# ══════════════════════════════════════════════════════════════════════════════
+
+section_title("Retornos por Periodo")
 
 merged_full = build_merged(port_full, ibov_raw, cdi_raw)
-
 
 def period_return_from_end(df, n):
     if len(df) < n + 1:
@@ -676,16 +693,6 @@ def period_return_from_end(df, n):
     bench_ret = (1 + df["Bench67_cum"].iloc[-1]) / (1 + df["Bench67_cum"].iloc[idx]) - 1 if ibov_ok else np.nan
     return port_ret, ibov_ret, cdi_ret, bench_ret
 
-
-windows = {
-    "1M": 21, "3M": 63, "6M": 126,
-    "1A": 252, "2A": 504, "3A": 756, "5A": 1260,
-    "Desde Inicio": len(merged_full) - 1,
-}
-
-rows = []
-
-
 def _period_row(label, subset):
     if len(subset) < 2:
         return None
@@ -696,6 +703,8 @@ def _period_row(label, subset):
     r["67% Ibov + 33% CDI"] = ((1 + subset["Bench67_cum"].iloc[-1]) / (1 + subset["Bench67_cum"].iloc[0]) - 1) if ibov_ok else np.nan
     return r
 
+windows = {"1M": 21, "3M": 63, "6M": 126, "1A": 252, "2A": 504, "3A": 756, "5A": 1260, "Desde Inicio": len(merged_full) - 1}
+rows = []
 
 mtd_mask = merged_full["Date"] >= merged_full["Date"].iloc[-1].replace(day=1)
 r = _period_row("MTD", merged_full[mtd_mask])
@@ -710,8 +719,7 @@ if r:
 for label, window in windows.items():
     result = period_return_from_end(merged_full, window)
     if result:
-        d = {"Periodo": label, "Carteira": result[0], "Ibovespa": result[1], "CDI": result[2], "67% Ibov + 33% CDI": result[3]}
-        rows.append(d)
+        rows.append({"Periodo": label, "Carteira": result[0], "Ibovespa": result[1], "CDI": result[2], "67% Ibov + 33% CDI": result[3]})
 
 period_df = pd.DataFrame(rows)
 fmt_cols = ["Carteira", "CDI"]
@@ -720,14 +728,17 @@ if ibov_ok:
 else:
     period_df = period_df[["Periodo", "Carteira", "CDI"]]
 for c in fmt_cols:
-    period_df[c] = period_df[c].apply(lambda x: f"{x:.2%}" if not np.isnan(x) else "—")
+    period_df[c] = period_df[c].apply(lambda x: f"{x:.2%}" if not np.isnan(x) else "\u2014")
 
 st.markdown(style_table(period_df), unsafe_allow_html=True)
 
-# ── Rolling Volatility ───────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+# GRAFICO 7 — Rolling Volatility
+# ══════════════════════════════════════════════════════════════════════════════
 
 if n_days >= 252:
-    st.subheader("Volatilidade Rolling 12 Meses")
+    section_title("Volatilidade Rolling 12 Meses")
 
     merged["Port_vol12"] = merged["Port_ret"].rolling(252).std() * np.sqrt(252)
 
@@ -741,9 +752,12 @@ if n_days >= 252:
     tag_chart_layout(fig7, height=350, yaxis_title="Volatilidade (%)")
     st.plotly_chart(fig7, use_container_width=True)
 
-# ── % do CDI ─────────────────────────────────────────────────────────────────
 
-st.subheader("Carteira como % do CDI")
+# ══════════════════════════════════════════════════════════════════════════════
+# % do CDI
+# ══════════════════════════════════════════════════════════════════════════════
+
+section_title("Carteira como % do CDI")
 
 yearly_pct_cdi = yearly[["Year"]].copy()
 yearly_pct_cdi["% do CDI"] = np.where(
@@ -752,17 +766,16 @@ yearly_pct_cdi["% do CDI"] = np.where(
     np.nan,
 )
 yearly_pct_cdi.columns = ["Ano", "% do CDI"]
-
 total_pct_cdi = port_total / cdi_total * 100 if cdi_total > 0 else 0
 
-col1, col2 = st.columns([1, 2])
-with col1:
+c1, c2 = st.columns([1, 2])
+with c1:
     st.metric("% do CDI (acumulado)", f"{total_pct_cdi:.1f}%")
     pct_display = yearly_pct_cdi.copy()
     pct_display["Ano"] = pct_display["Ano"].astype(str)
-    pct_display["% do CDI"] = pct_display["% do CDI"].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "—")
+    pct_display["% do CDI"] = pct_display["% do CDI"].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "\u2014")
     st.markdown(style_table(pct_display), unsafe_allow_html=True)
-with col2:
+with c2:
     fig8 = go.Figure()
     colors = [TAG_AZUL_ESCURO if v >= 100 else TAG_ROSA for v in yearly_pct_cdi["% do CDI"].fillna(0)]
     fig8.add_trace(go.Bar(x=yearly_pct_cdi["Ano"], y=yearly_pct_cdi["% do CDI"], marker_color=colors))
@@ -770,22 +783,18 @@ with col2:
     tag_chart_layout(fig8, height=400, yaxis_title="% do CDI", ticksuffix="%")
     st.plotly_chart(fig8, use_container_width=True)
 
-# ── Disclaimer & Footer ─────────────────────────────────────────────────────
 
-st.markdown(f"""
-<div style="background:{TAG_BRANCO};border-left:4px solid {TAG_LARANJA};border-radius:0 8px 8px 0;padding:0.8rem 1.2rem;margin-top:1rem;font-size:0.75rem;color:{TAG_CINZA};line-height:1.5;">
-    <strong>Aviso:</strong> Este material tem carater meramente informativo e nao constitui oferta, solicitacao de oferta ou recomendacao
-    de investimento. Rentabilidade passada nao representa garantia de rentabilidade futura. O benchmark ficticio (67% Ibovespa + 33% CDI)
-    e utilizado apenas para fins comparativos, refletindo a alocacao aproximada da carteira.
-</div>
-""", unsafe_allow_html=True)
+# ══════════════════════════════════════════════════════════════════════════════
+# DISCLAIMER & FOOTER
+# ══════════════════════════════════════════════════════════════════════════════
 
-_ft_col1, _ft_col2 = st.columns([1, 5])
-with _ft_col1:
-    if os.path.exists(_logo_path):
-        st.image(_logo_path, width=90)
-with _ft_col2:
-    st.markdown(f"""<div class="tag-footer-banner">
-Dados: Cota de rendimento do cliente &middot; Ibovespa (BCB / Yahoo Finance) &middot; CDI (Banco Central)<br>
-Benchmark = 67% Ibovespa + 33% CDI &middot; TAG Investimentos
+st.markdown(f"""<div class="disclaimer">
+<strong>Aviso:</strong> Este material tem carater meramente informativo e nao constitui oferta, solicitacao de oferta ou recomendacao
+de investimento. Rentabilidade passada nao representa garantia de rentabilidade futura. O benchmark ficticio (67% Ibovespa + 33% CDI)
+e utilizado apenas para fins comparativos, refletindo a alocacao aproximada da carteira.
+</div>""", unsafe_allow_html=True)
+
+st.markdown(f"""<div class="tag-footer">
+<p>Dados: Cota de rendimento do cliente &bull; Ibovespa (BCB / Yahoo Finance) &bull; CDI (Banco Central)<br>
+Benchmark = 67% Ibovespa + 33% CDI &bull; <strong>TAG Investimentos</strong></p>
 </div>""", unsafe_allow_html=True)
