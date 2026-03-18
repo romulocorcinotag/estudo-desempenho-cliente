@@ -211,16 +211,20 @@ def load_portfolio(path):
     data = data.sort_values("Date").reset_index(drop=True)
     first_valid = data[data["Patrimonio"] > 0].index[0]
     data = data.loc[first_valid:].reset_index(drop=True)
-    # Suaviza picos/vales bruscos no patrimonio (V-shapes)
+    # Suaviza patrimonio: interpola zeros e spikes isolados
     pat = data["Patrimonio"].copy()
-    for i in range(1, len(pat) - 1):
-        prev, cur, nxt = pat.iloc[i - 1], pat.iloc[i], pat.iloc[i + 1]
-        if prev > 0 and cur > 0 and nxt > 0:
-            drop_from_prev = abs(cur / prev - 1)
-            recover_to_next = abs(nxt / cur - 1)
-            # Se caiu/subiu >30% e voltou >30%, e um spike isolado
-            if drop_from_prev > 0.30 and recover_to_next > 0.30:
-                pat.iloc[i] = (prev + nxt) / 2
+    # 1) Substitui zeros/negativos por NaN e interpola
+    pat[pat <= 0] = np.nan
+    pat = pat.interpolate(method="linear").ffill().bfill()
+    # 2) Remove V-shapes: variação >30% ida e volta
+    for _ in range(3):  # multiplas passadas para pegar sequencias
+        for i in range(1, len(pat) - 1):
+            prev, cur, nxt = pat.iloc[i - 1], pat.iloc[i], pat.iloc[i + 1]
+            if prev > 0 and nxt > 0:
+                drop = abs(cur / prev - 1)
+                recover = abs(nxt / cur - 1)
+                if drop > 0.30 and recover > 0.30:
+                    pat.iloc[i] = (prev + nxt) / 2
     data["Patrimonio"] = pat
     return data
 
