@@ -77,20 +77,25 @@ st.markdown(f"""
     }}
     div[data-testid="stMetric"] label {{
         color: {TAG_VERMELHO} !important;
-        font-weight: 600 !important;
-        font-size: 0.78rem !important;
+        font-weight: 700 !important;
+        font-size: 0.82rem !important;
         text-transform: uppercase;
         letter-spacing: 0.03em;
     }}
     div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
         color: {TAG_AZUL_ESCURO} !important;
         font-weight: 700 !important;
+        font-size: 1.6rem !important;
+    }}
+    div[data-testid="stMetric"] div[data-testid="stMetricDelta"] {{
+        font-size: 0.85rem !important;
     }}
     .stMarkdown h2, .stMarkdown h3 {{
         color: {TAG_VERMELHO} !important;
         border-bottom: 2px solid {TAG_LARANJA};
         padding-bottom: 0.4rem;
-        font-weight: 500 !important;
+        font-weight: 700 !important;
+        font-size: 1.3rem !important;
     }}
     .stPlotlyChart {{
         background-color: {TAG_BRANCO};
@@ -107,29 +112,34 @@ st.markdown(f"""
         margin-bottom: 1.5rem;
     }}
     .tag-header-banner h1 {{
-        color: {TAG_OFFWHITE} !important;
+        color: #FFFFFF !important;
         font-size: 1.8rem !important;
-        font-weight: 300 !important;
+        font-weight: 600 !important;
         letter-spacing: 0.05em;
         margin: 0 !important;
         padding: 0 !important;
         border: none !important;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }}
     .tag-header-banner p {{
-        color: {TAG_LARANJA};
-        font-size: 0.9rem;
-        margin: 0.4rem 0 0 0;
-        font-weight: 400;
+        color: #FFBB00 !important;
+        font-size: 0.95rem !important;
+        margin: 0.6rem 0 0 0 !important;
+        font-weight: 500 !important;
     }}
     /* Footer banner */
     .tag-footer-banner {{
         background: linear-gradient(135deg, {TAG_VERMELHO} 0%, {TAG_VERMELHO_LIGHT} 100%);
-        color: {TAG_OFFWHITE};
+        color: #FFFFFF !important;
         padding: 1.2rem 2rem;
         border-radius: 12px;
         margin-top: 1.5rem;
-        font-size: 0.78rem;
+        font-size: 0.85rem;
         text-align: center;
+        line-height: 1.6;
+    }}
+    .tag-footer-banner * {{
+        color: #FFFFFF !important;
     }}
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
