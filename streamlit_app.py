@@ -386,8 +386,8 @@ def tag_chart_layout(fig, height=450, yaxis_title="", ticksuffix="%"):
     return fig
 
 
-def style_table(df):
-    html = '<div style="overflow-x:auto;border-radius:12px;border:1px solid #E8E6DD;box-shadow:0 2px 8px rgba(99,13,36,0.05);margin:0.5rem auto 1.5rem auto;max-width:900px;">'
+def style_table(df, highlight_best=False):
+    html = '<div style="overflow-x:auto;border-radius:12px;border:1px solid #E8E6DD;box-shadow:0 2px 8px rgba(99,13,36,0.05);margin:0.5rem auto 1.5rem auto;max-width:960px;">'
     html += '<table style="width:100%;border-collapse:collapse;font-family:Inter,Tahoma,sans-serif;font-size:0.85rem;">'
     html += '<thead><tr>'
     for col in df.columns:
@@ -395,14 +395,43 @@ def style_table(df):
     html += '</tr></thead><tbody>'
     for i, (_, row) in enumerate(df.iterrows()):
         bg = TAG_BRANCO if i % 2 == 0 else "#FAFAF8"
+        # Find best value in this row (for highlight)
+        best_col = -1
+        if highlight_best and len(row) > 1:
+            numeric_vals = []
+            for j, val in enumerate(row):
+                if j == 0:
+                    numeric_vals.append(None)
+                    continue
+                try:
+                    v = str(val).replace("%", "").replace(",", ".").replace("\u2014", "")
+                    numeric_vals.append(float(v) if v.strip() else None)
+                except (ValueError, AttributeError):
+                    numeric_vals.append(None)
+            valid = [(j, v) for j, v in enumerate(numeric_vals) if v is not None]
+            if valid:
+                best_col = max(valid, key=lambda x: x[1])[0]
         html += '<tr>'
         for j, val in enumerate(row):
             fw = "600" if j == 0 else "400"
             color = TAG_VERMELHO if j == 0 else TAG_AZUL_ESCURO
-            html += f'<td style="background:{bg};color:{color};padding:0.6rem 1rem;text-align:center;font-weight:{fw};border-bottom:1px solid #F0EEE8;">{val}</td>'
+            cell_bg = bg
+            if j == best_col and highlight_best:
+                cell_bg = "#E8F5E9"
+                fw = "700"
+            html += f'<td style="background:{cell_bg};color:{color};padding:0.6rem 1rem;text-align:center;font-weight:{fw};border-bottom:1px solid #F0EEE8;">{val}</td>'
         html += '</tr>'
     html += '</tbody></table></div>'
     return html
+
+
+def insight_box(text, icon=""):
+    """Caixa de destaque para insights."""
+    st.markdown(f"""<div style="background:linear-gradient(135deg,{TAG_AZUL_ESCURO}08,{TAG_VERMELHO}06);
+    border:1px solid {TAG_AZUL_ESCURO}20;border-radius:12px;padding:1rem 1.5rem;margin:0.5rem 0 1.5rem 0;
+    font-size:0.88rem;color:{TAG_AZUL_ESCURO};line-height:1.6;">
+    {icon} {text}
+    </div>""", unsafe_allow_html=True)
 
 
 def build_merged(port_df, ibov_df, cdi_df):
@@ -474,11 +503,11 @@ if os.path.exists(_logo_path):
     st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
 st.sidebar.markdown(f'<div style="border-top:1px solid rgba(255,136,83,0.3);margin:0.5rem 0 1rem 0;"></div>', unsafe_allow_html=True)
-st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Periodo de Analise</p>', unsafe_allow_html=True)
+st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Período de Análise</p>', unsafe_allow_html=True)
 
 preset = st.sidebar.selectbox(
-    "Periodo",
-    ["Desde o Inicio", "YTD", "Ultimo Ano", "Ultimos 2 Anos", "Ultimos 3 Anos", "Ultimos 5 Anos", "Personalizado"],
+    "Período",
+    ["Desde o Início", "YTD", "Último Ano", "Últimos 2 Anos", "Últimos 3 Anos", "Últimos 5 Anos", "Personalizado"],
     index=0,
     label_visibility="collapsed",
 )
@@ -486,16 +515,16 @@ preset = st.sidebar.selectbox(
 today_ref = full_end
 if preset == "YTD":
     sel_start, sel_end = pd.Timestamp(today_ref.year, 1, 1), today_ref
-elif preset == "Ultimo Ano":
+elif preset == "Último Ano":
     sel_start, sel_end = today_ref - pd.DateOffset(years=1), today_ref
-elif preset == "Ultimos 2 Anos":
+elif preset == "Últimos 2 Anos":
     sel_start, sel_end = today_ref - pd.DateOffset(years=2), today_ref
-elif preset == "Ultimos 3 Anos":
+elif preset == "Últimos 3 Anos":
     sel_start, sel_end = today_ref - pd.DateOffset(years=3), today_ref
-elif preset == "Ultimos 5 Anos":
+elif preset == "Últimos 5 Anos":
     sel_start, sel_end = today_ref - pd.DateOffset(years=5), today_ref
 elif preset == "Personalizado":
-    sel_start = pd.Timestamp(st.sidebar.date_input("Data Inicio", value=full_start.date(), min_value=full_start.date(), max_value=full_end.date()))
+    sel_start = pd.Timestamp(st.sidebar.date_input("Data Início", value=full_start.date(), min_value=full_start.date(), max_value=full_end.date()))
     sel_end = pd.Timestamp(st.sidebar.date_input("Data Fim", value=full_end.date(), min_value=full_start.date(), max_value=full_end.date()))
 else:
     sel_start, sel_end = full_start, full_end
@@ -513,7 +542,7 @@ st.sidebar.markdown(f"""
 
 port_filtered = port_full[(port_full["Date"] >= sel_start) & (port_full["Date"] <= sel_end)].reset_index(drop=True)
 if len(port_filtered) < 2:
-    st.error("Periodo selecionado nao tem dados suficientes.")
+    st.error("Período selecionado não tem dados suficientes.")
     st.stop()
 
 merged = build_merged(port_filtered, ibov_raw, cdi_raw)
@@ -535,7 +564,7 @@ st.markdown(f"""<div class="tag-header">
 </div>""", unsafe_allow_html=True)
 
 if not ibov_ok:
-    st.warning("Dados do Ibovespa indisponiveis. Exibindo apenas Carteira vs CDI.")
+    st.warning("Dados do Ibovespa indisponíveis. Exibindo apenas Carteira vs CDI.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -569,33 +598,32 @@ port_dd = calc_drawdown(1 + merged["Portfolio_cum"])
 ibov_dd = calc_drawdown(1 + merged["Ibov_cum"]) if ibov_ok else pd.Series(0, index=merged.index)
 bench67_dd = calc_drawdown(1 + merged["Bench67_cum"]) if ibov_ok else pd.Series(0, index=merged.index)
 
-section_title("Retorno Acumulado")
+# ── Painel de Destaques ──
+total_pct_cdi_quick = port_total / cdi_total * 100 if cdi_total > 0 else 0
+excess_vs_ibov = (port_total - ibov_total) * 100 if ibov_ok and not np.isnan(ibov_total) else 0
+excess_vs_cdi = (port_total - cdi_total) * 100
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Carteira", fmt_pct(port_total), f"anual: {fmt_pct(port_ann)}")
-c2.metric("Ibovespa", fmt_pct(ibov_total), f"anual: {fmt_pct(ibov_ann)}")
-c3.metric("CDI", fmt_pct(cdi_total), f"anual: {fmt_pct(cdi_ann)}")
-c4.metric("67% Ibov + 33% CDI", fmt_pct(bench67_total), f"anual: {fmt_pct(bench67_ann)}")
+insights = []
+insights.append(f"<b>Retorno acumulado da carteira: {fmt_pct(port_total)}</b> ({fmt_pct(port_ann)} a.a.) em ~{total_days / 365:.0f} anos")
+if ibov_ok and excess_vs_ibov > 0:
+    insights.append(f"Carteira superou o Ibovespa em <b>{excess_vs_ibov:+.1f} p.p.</b> acumulados")
+if excess_vs_cdi > 0:
+    insights.append(f"Carteira entregou <b>{total_pct_cdi_quick:.0f}% do CDI</b> no período")
+insight_box(" &nbsp;|&nbsp; ".join(insights))
 
-section_title("Risco")
+# ── Tabela Comparativa ──
+section_title("Painel Comparativo")
+st.caption("Melhor resultado de cada métrica destacado em verde.")
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Vol. Carteira", fmt_pct(port_vol))
-c2.metric("Vol. Ibovespa", fmt_pct(ibov_vol))
-c3.metric("Vol. CDI", "~0%")
-c4.metric("Vol. Bench 67/33", fmt_pct(bench67_vol))
-
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Max DD Carteira", fmt_pct(port_dd.min()))
-c2.metric("Max DD Ibovespa", fmt_pct(ibov_dd.min()) if ibov_ok else "\u2014")
-c3.metric("Max DD CDI", "~0%")
-c4.metric("Max DD Bench 67/33", fmt_pct(bench67_dd.min()) if ibov_ok else "\u2014")
-
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Sharpe Carteira", fmt_f(port_sharpe))
-c2.metric("Sharpe Ibovespa", fmt_f(ibov_sharpe))
-c3.metric("Sharpe CDI", "\u2014")
-c4.metric("Sharpe Bench 67/33", fmt_f(bench67_sharpe))
+summary_data = {
+    "": ["Retorno Acumulado", "Retorno Anual", "Volatilidade", "Max Drawdown", "Sharpe"],
+    "Carteira": [fmt_pct(port_total), fmt_pct(port_ann), fmt_pct(port_vol), fmt_pct(port_dd.min()), fmt_f(port_sharpe)],
+    "Ibovespa": [fmt_pct(ibov_total), fmt_pct(ibov_ann), fmt_pct(ibov_vol), fmt_pct(ibov_dd.min()) if ibov_ok else "\u2014", fmt_f(ibov_sharpe)],
+    "CDI": [fmt_pct(cdi_total), fmt_pct(cdi_ann), "~0%", "~0%", "\u2014"],
+    "67% Ibov + 33% CDI": [fmt_pct(bench67_total), fmt_pct(bench67_ann), fmt_pct(bench67_vol), fmt_pct(bench67_dd.min()) if ibov_ok else "\u2014", fmt_f(bench67_sharpe)],
+}
+summary_df = pd.DataFrame(summary_data)
+st.markdown(style_table(summary_df, highlight_best=True), unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -603,7 +631,7 @@ c4.metric("Sharpe Bench 67/33", fmt_f(bench67_sharpe))
 # ══════════════════════════════════════════════════════════════════════════════
 
 section_title("Retorno Acumulado (%)")
-st.caption("Evolucao do retorno acumulado da carteira comparado aos benchmarks, com base na cota de rendimento (descontando aportes e resgates).")
+st.caption("Evolução do retorno acumulado da carteira comparado aos benchmarks, com base na cota de rendimento (descontando aportes e resgates).")
 
 fig1 = go.Figure()
 fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Portfolio_cum"] * 100, name="Carteira", line=dict(width=2.5, color=CHART_COLORS["carteira"])))
@@ -621,7 +649,7 @@ st.plotly_chart(fig1, use_container_width=True)
 # ══════════════════════════════════════════════════════════════════════════════
 
 section_title("Drawdown")
-st.caption("Queda percentual em relacao ao pico historico. Quanto menor (mais negativo), maior foi a perda temporaria no periodo.")
+st.caption("Queda percentual em relação ao pico histórico. Quanto menor (mais negativo), maior foi a perda temporária no período.")
 
 fig2 = go.Figure()
 fig2.add_trace(go.Scatter(x=merged["Date"], y=port_dd * 100, name="Carteira", fill="tozeroy", line=dict(color=CHART_COLORS["carteira"]), fillcolor="rgba(0,42,110,0.10)"))
@@ -637,7 +665,7 @@ st.plotly_chart(fig2, use_container_width=True)
 # ══════════════════════════════════════════════════════════════════════════════
 
 section_title("Retornos Anuais")
-st.caption("Retorno de cada ativo dentro de cada ano-calendario. Permite comparar o desempenho relativo ano a ano.")
+st.caption("Retorno de cada ativo dentro de cada ano-calendário. Permite comparar o desempenho relativo ano a ano.")
 
 merged["Year"] = merged["Date"].dt.year
 yearly = merged.groupby("Year").agg(
@@ -675,7 +703,7 @@ yearly_display.columns = col_names
 for c in col_names[1:]:
     yearly_display[c] = yearly_display[c].apply(lambda x: f"{x:.2%}" if not np.isnan(x) else "\u2014")
 yearly_display["Ano"] = yearly_display["Ano"].astype(str)
-st.markdown(style_table(yearly_display), unsafe_allow_html=True)
+st.markdown(style_table(yearly_display, highlight_best=True), unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -687,7 +715,7 @@ rolling_windows = {"1 Ano": 252, "3 Anos": 756, "5 Anos": 1260}
 for roll_label, roll_window in rolling_windows.items():
     if n_days >= roll_window:
         section_title(f"Retorno Rolling {roll_label}")
-        st.caption(f"Cada ponto mostra o retorno nos ultimos {roll_window} d.u. O retorno medio representa a experiencia media do cotista que permaneceu investido por {roll_label.lower()}.")
+        st.caption(f"Cada ponto mostra o retorno nos últimos {roll_window} d.u. O retorno médio representa a experiência média do cotista que permaneceu investido por {roll_label.lower()}.")
 
         port_roll = rolling_return(1 + merged["Portfolio_cum"], roll_window)
         cdi_roll = rolling_return(1 + merged["CDI_cum"], roll_window)
@@ -718,7 +746,7 @@ for roll_label, roll_window in rolling_windows.items():
         st.plotly_chart(fig_roll, use_container_width=True)
 
         # Tabela resumo dos retornos medios
-        avg_data = {"": [f"Retorno medio {roll_label}"], "Carteira": [f"{avg_port:.2%}"], "CDI": [f"{avg_cdi_val:.2%}"]}
+        avg_data = {"": [f"Retorno médio {roll_label}"], "Carteira": [f"{avg_port:.2%}"], "CDI": [f"{avg_cdi_val:.2%}"]}
         if ibov_ok:
             avg_data["Ibovespa"] = [f"{avg_ibov:.2%}"]
             avg_data["67% Ibov + 33% CDI"] = [f"{avg_bench:.2%}"]
@@ -731,7 +759,7 @@ for roll_label, roll_window in rolling_windows.items():
 # ══════════════════════════════════════════════════════════════════════════════
 
 section_title("Excesso de Retorno vs Benchmarks")
-st.caption("Diferenca acumulada entre o retorno da carteira e cada benchmark. Valores positivos indicam que a carteira superou o benchmark.")
+st.caption("Diferença acumulada entre o retorno da carteira e cada benchmark. Valores positivos indicam que a carteira superou o benchmark.")
 
 fig5 = go.Figure()
 if ibov_ok:
@@ -748,8 +776,8 @@ st.plotly_chart(fig5, use_container_width=True)
 # GRAFICO 6 — Patrimonio
 # ══════════════════════════════════════════════════════════════════════════════
 
-section_title("Evolucao do Patrimonio (R$)")
-st.caption("Patrimonio total ao longo do tempo, incluindo efeito de aportes, resgates e valorizacao. Aportes e resgates significativos podem causar saltos no grafico.")
+section_title("Evolução do Patrimônio (R$)")
+st.caption("Patrimônio total ao longo do tempo, incluindo efeito de aportes, resgates e valorização. Aportes e resgates significativos podem causar saltos no gráfico.")
 
 fig6 = go.Figure()
 fig6.add_trace(go.Scatter(x=merged["Date"], y=merged["Patrimonio"], name="Patrimonio", fill="tozeroy", line=dict(color=TAG_AZUL_ESCURO, width=2), fillcolor="rgba(0,42,110,0.08)"))
@@ -762,7 +790,8 @@ st.plotly_chart(fig6, use_container_width=True)
 # TABELA — Retornos por Periodo
 # ══════════════════════════════════════════════════════════════════════════════
 
-section_title("Retornos por Periodo")
+section_title("Retornos por Período")
+st.caption("Retorno da carteira e benchmarks em diferentes horizontes de tempo.")
 
 merged_full = build_merged(port_full, ibov_raw, cdi_raw)
 
@@ -779,7 +808,7 @@ def period_return_from_end(df, n):
 def _period_row(label, subset):
     if len(subset) < 2:
         return None
-    r = {"Periodo": label}
+    r = {"Período": label}
     r["Carteira"] = (1 + subset["Portfolio_cum"].iloc[-1]) / (1 + subset["Portfolio_cum"].iloc[0]) - 1
     r["Ibovespa"] = ((1 + subset["Ibov_cum"].iloc[-1]) / (1 + subset["Ibov_cum"].iloc[0]) - 1) if ibov_ok else np.nan
     r["CDI"] = (1 + subset["CDI_cum"].iloc[-1]) / (1 + subset["CDI_cum"].iloc[0]) - 1
@@ -802,18 +831,18 @@ if r:
 for label, window in windows.items():
     result = period_return_from_end(merged_full, window)
     if result:
-        rows.append({"Periodo": label, "Carteira": result[0], "Ibovespa": result[1], "CDI": result[2], "67% Ibov + 33% CDI": result[3]})
+        rows.append({"Período": label, "Carteira": result[0], "Ibovespa": result[1], "CDI": result[2], "67% Ibov + 33% CDI": result[3]})
 
 period_df = pd.DataFrame(rows)
 fmt_cols = ["Carteira", "CDI"]
 if ibov_ok:
     fmt_cols = ["Carteira", "Ibovespa", "CDI", "67% Ibov + 33% CDI"]
 else:
-    period_df = period_df[["Periodo", "Carteira", "CDI"]]
+    period_df = period_df[["Período", "Carteira", "CDI"]]
 for c in fmt_cols:
     period_df[c] = period_df[c].apply(lambda x: f"{x:.2%}" if not np.isnan(x) else "\u2014")
 
-st.markdown(style_table(period_df), unsafe_allow_html=True)
+st.markdown(style_table(period_df, highlight_best=True), unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -822,7 +851,7 @@ st.markdown(style_table(period_df), unsafe_allow_html=True)
 
 if n_days >= 252:
     section_title("Volatilidade Rolling 12 Meses")
-    st.caption("Volatilidade anualizada calculada sobre os ultimos 252 dias uteis. Mede a oscilacao dos retornos — quanto maior, mais risco.")
+    st.caption("Volatilidade anualizada calculada sobre os últimos 252 dias úteis. Mede a oscilação dos retornos — quanto maior, mais risco.")
 
     merged["Port_vol12"] = merged["Port_ret"].rolling(252).std() * np.sqrt(252)
 
@@ -842,7 +871,7 @@ if n_days >= 252:
 # ══════════════════════════════════════════════════════════════════════════════
 
 section_title("Carteira como % do CDI")
-st.caption("Percentual do CDI entregue pela carteira em cada ano. Acima de 100% significa que a carteira superou o CDI no periodo.")
+st.caption("Percentual do CDI entregue pela carteira em cada ano. Acima de 100% significa que a carteira superou o CDI no período.")
 
 yearly_pct_cdi = yearly[["Year"]].copy()
 yearly_pct_cdi["% do CDI"] = np.where(
@@ -874,9 +903,9 @@ with c2:
 # ══════════════════════════════════════════════════════════════════════════════
 
 st.markdown(f"""<div class="disclaimer">
-<strong>Aviso:</strong> Este material tem carater meramente informativo e nao constitui oferta, solicitacao de oferta ou recomendacao
-de investimento. Rentabilidade passada nao representa garantia de rentabilidade futura. O benchmark ficticio (67% Ibovespa + 33% CDI)
-e utilizado apenas para fins comparativos, refletindo a alocacao aproximada da carteira.
+<strong>Aviso:</strong> Este material tem caráter meramente informativo e não constitui oferta, solicitação de oferta ou recomendação
+de investimento. Rentabilidade passada não representa garantia de rentabilidade futura. O benchmark fictício (67% Ibovespa + 33% CDI)
+é utilizado apenas para fins comparativos, refletindo a alocação aproximada da carteira.
 </div>""", unsafe_allow_html=True)
 
 st.markdown(f"""<div class="tag-footer">
