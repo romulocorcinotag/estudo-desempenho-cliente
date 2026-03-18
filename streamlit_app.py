@@ -186,8 +186,13 @@ st.markdown(f"""
 
     /* Sidebar image centered */
     section[data-testid="stSidebar"] div[data-testid="stImage"] {{
-        display: flex;
-        justify-content: center;
+        display: flex !important;
+        justify-content: center !important;
+        margin: 0 auto !important;
+    }}
+    section[data-testid="stSidebar"] div[data-testid="stImage"] img {{
+        margin: 0 auto !important;
+        display: block !important;
     }}
 
     /* Hide streamlit defaults */
@@ -535,7 +540,7 @@ sel_end = min(sel_end, full_end)
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"""
 <div style="text-align:center;">
-    <p style="font-size:0.65rem;color:rgba(245,244,240,0.5) !important;margin:0;">Dados atualizados ate</p>
+    <p style="font-size:0.65rem;color:rgba(245,244,240,0.5) !important;margin:0;">Dados atualizados até</p>
     <p style="font-size:0.85rem;color:{TAG_LARANJA} !important;font-weight:600;margin:0.2rem 0 0 0;">{full_end.strftime('%d/%m/%Y')}</p>
 </div>
 """, unsafe_allow_html=True)
