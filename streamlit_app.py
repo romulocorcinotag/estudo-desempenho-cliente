@@ -489,9 +489,7 @@ Ibov: {_ibov_n} pts | {_ibov_first:.0f} → {_ibov_last:.0f} | {_ibov_ret:.1%}
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 
 if os.path.exists(_logo_path):
-    st.sidebar.markdown('<div style="text-align:center;padding:1rem 0;">', unsafe_allow_html=True)
-    st.sidebar.image(_logo_path, width=140)
-    st.sidebar.markdown('</div>', unsafe_allow_html=True)
+    st.sidebar.image(_logo_path, use_container_width=False, width=200)
 
 st.sidebar.markdown(f'<div style="border-top:1px solid rgba(255,136,83,0.3);margin:0.5rem 0 1rem 0;"></div>', unsafe_allow_html=True)
 st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Período de Análise</p>', unsafe_allow_html=True)
