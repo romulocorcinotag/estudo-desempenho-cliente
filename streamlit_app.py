@@ -174,6 +174,22 @@ st.markdown(f"""
         line-height: 1.7;
     }}
 
+    /* Captions */
+    .stCaption, div[data-testid="stCaptionContainer"] {{
+        text-align: center !important;
+        color: {TAG_CINZA} !important;
+        font-size: 0.82rem !important;
+        max-width: 800px;
+        margin: 0 auto 1rem auto !important;
+        line-height: 1.5;
+    }}
+
+    /* Sidebar image centered */
+    section[data-testid="stSidebar"] div[data-testid="stImage"] {{
+        display: flex;
+        justify-content: center;
+    }}
+
     /* Hide streamlit defaults */
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
@@ -453,10 +469,12 @@ ibov_ok = len(ibov_raw) > 0 and ibov_raw["Close"].notna().any()
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 
 if os.path.exists(_logo_path):
-    st.sidebar.image(_logo_path, width=130)
+    st.sidebar.markdown('<div style="text-align:center;padding:1rem 0;">', unsafe_allow_html=True)
+    st.sidebar.image(_logo_path, width=140)
+    st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
-st.sidebar.markdown("")
-st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;">Periodo de Analise</p>', unsafe_allow_html=True)
+st.sidebar.markdown(f'<div style="border-top:1px solid rgba(255,136,83,0.3);margin:0.5rem 0 1rem 0;"></div>', unsafe_allow_html=True)
+st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Periodo de Analise</p>', unsafe_allow_html=True)
 
 preset = st.sidebar.selectbox(
     "Periodo",
@@ -585,6 +603,7 @@ c4.metric("Sharpe Bench 67/33", fmt_f(bench67_sharpe))
 # ══════════════════════════════════════════════════════════════════════════════
 
 section_title("Retorno Acumulado (%)")
+st.caption("Evolucao do retorno acumulado da carteira comparado aos benchmarks, com base na cota de rendimento (descontando aportes e resgates).")
 
 fig1 = go.Figure()
 fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Portfolio_cum"] * 100, name="Carteira", line=dict(width=2.5, color=CHART_COLORS["carteira"])))
@@ -602,6 +621,7 @@ st.plotly_chart(fig1, use_container_width=True)
 # ══════════════════════════════════════════════════════════════════════════════
 
 section_title("Drawdown")
+st.caption("Queda percentual em relacao ao pico historico. Quanto menor (mais negativo), maior foi a perda temporaria no periodo.")
 
 fig2 = go.Figure()
 fig2.add_trace(go.Scatter(x=merged["Date"], y=port_dd * 100, name="Carteira", fill="tozeroy", line=dict(color=CHART_COLORS["carteira"]), fillcolor="rgba(0,42,110,0.10)"))
@@ -617,6 +637,7 @@ st.plotly_chart(fig2, use_container_width=True)
 # ══════════════════════════════════════════════════════════════════════════════
 
 section_title("Retornos Anuais")
+st.caption("Retorno de cada ativo dentro de cada ano-calendario. Permite comparar o desempenho relativo ano a ano.")
 
 merged["Year"] = merged["Date"].dt.year
 yearly = merged.groupby("Year").agg(
@@ -666,20 +687,47 @@ rolling_windows = {"1 Ano": 252, "3 Anos": 756, "5 Anos": 1260}
 for roll_label, roll_window in rolling_windows.items():
     if n_days >= roll_window:
         section_title(f"Retorno Rolling {roll_label}")
+        st.caption(
+            f"Janela movel de {roll_label.lower()}: cada ponto mostra o retorno acumulado nos ultimos {roll_window} dias uteis. "
+            f"O retorno medio dessa janela representa a **experiencia media do cotista** que permaneceu investido por {roll_label.lower()} "
+            f"em qualquer momento do historico — um indicador mais robusto que o retorno acumulado total."
+        )
 
         port_roll = rolling_return(1 + merged["Portfolio_cum"], roll_window)
         cdi_roll = rolling_return(1 + merged["CDI_cum"], roll_window)
 
+        # Calcula retornos medios
+        avg_port = port_roll.dropna().mean()
+        avg_cdi = cdi_roll.dropna().mean()
+
         fig_roll = go.Figure()
-        fig_roll.add_trace(go.Scatter(x=merged["Date"], y=port_roll * 100, name="Carteira", line=dict(color=CHART_COLORS["carteira"], width=2)))
+        fig_roll.add_trace(go.Scatter(x=merged["Date"], y=port_roll * 100, name=f"Carteira (media: {avg_port:.1%})", line=dict(color=CHART_COLORS["carteira"], width=2)))
+        # Linha media carteira
+        fig_roll.add_hline(y=avg_port * 100, line_dash="dot", line_color=CHART_COLORS["carteira"], line_width=1,
+                           annotation_text=f"Media Carteira: {avg_port:.1%}", annotation_font_color=CHART_COLORS["carteira"],
+                           annotation_position="top left", annotation_font_size=10)
+
         if ibov_ok:
             ibov_roll = rolling_return(1 + merged["Ibov_cum"], roll_window)
             bench_roll = rolling_return(1 + merged["Bench67_cum"], roll_window)
-            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=ibov_roll * 100, name="Ibovespa", line=dict(color=CHART_COLORS["ibovespa"], width=1.5)))
-            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=bench_roll * 100, name="67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1.5, dash="dash")))
-        fig_roll.add_trace(go.Scatter(x=merged["Date"], y=cdi_roll * 100, name="CDI", line=dict(color=CHART_COLORS["cdi"], width=1.5, dash="dot")))
-        tag_chart_layout(fig_roll, height=400, yaxis_title=f"Retorno {roll_label} (%)")
+            avg_ibov = ibov_roll.dropna().mean()
+            avg_bench = bench_roll.dropna().mean()
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=ibov_roll * 100, name=f"Ibovespa (media: {avg_ibov:.1%})", line=dict(color=CHART_COLORS["ibovespa"], width=1.5)))
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=bench_roll * 100, name=f"67% Ibov + 33% CDI (media: {avg_bench:.1%})", line=dict(color=CHART_COLORS["bench67"], width=1.5, dash="dash")))
+
+        avg_cdi_val = avg_cdi
+        fig_roll.add_trace(go.Scatter(x=merged["Date"], y=cdi_roll * 100, name=f"CDI (media: {avg_cdi_val:.1%})", line=dict(color=CHART_COLORS["cdi"], width=1.5, dash="dot")))
+
+        tag_chart_layout(fig_roll, height=430, yaxis_title=f"Retorno {roll_label} (%)")
         st.plotly_chart(fig_roll, use_container_width=True)
+
+        # Tabela resumo dos retornos medios
+        avg_data = {"": [f"Retorno medio {roll_label}"], "Carteira": [f"{avg_port:.2%}"], "CDI": [f"{avg_cdi_val:.2%}"]}
+        if ibov_ok:
+            avg_data["Ibovespa"] = [f"{avg_ibov:.2%}"]
+            avg_data["67% Ibov + 33% CDI"] = [f"{avg_bench:.2%}"]
+        avg_df = pd.DataFrame(avg_data)
+        st.markdown(style_table(avg_df), unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -687,6 +735,7 @@ for roll_label, roll_window in rolling_windows.items():
 # ══════════════════════════════════════════════════════════════════════════════
 
 section_title("Excesso de Retorno vs Benchmarks")
+st.caption("Diferenca acumulada entre o retorno da carteira e cada benchmark. Valores positivos indicam que a carteira superou o benchmark.")
 
 fig5 = go.Figure()
 if ibov_ok:
@@ -704,6 +753,7 @@ st.plotly_chart(fig5, use_container_width=True)
 # ══════════════════════════════════════════════════════════════════════════════
 
 section_title("Evolucao do Patrimonio (R$)")
+st.caption("Patrimonio total ao longo do tempo, incluindo efeito de aportes, resgates e valorizacao. Aportes e resgates significativos podem causar saltos no grafico.")
 
 fig6 = go.Figure()
 fig6.add_trace(go.Scatter(x=merged["Date"], y=merged["Patrimonio"], name="Patrimonio", fill="tozeroy", line=dict(color=TAG_AZUL_ESCURO, width=2), fillcolor="rgba(0,42,110,0.08)"))
@@ -776,6 +826,7 @@ st.markdown(style_table(period_df), unsafe_allow_html=True)
 
 if n_days >= 252:
     section_title("Volatilidade Rolling 12 Meses")
+    st.caption("Volatilidade anualizada calculada sobre os ultimos 252 dias uteis. Mede a oscilacao dos retornos — quanto maior, mais risco.")
 
     merged["Port_vol12"] = merged["Port_ret"].rolling(252).std() * np.sqrt(252)
 
@@ -795,6 +846,7 @@ if n_days >= 252:
 # ══════════════════════════════════════════════════════════════════════════════
 
 section_title("Carteira como % do CDI")
+st.caption("Percentual do CDI entregue pela carteira em cada ano. Acima de 100% significa que a carteira superou o CDI no periodo.")
 
 yearly_pct_cdi = yearly[["Year"]].copy()
 yearly_pct_cdi["% do CDI"] = np.where(
