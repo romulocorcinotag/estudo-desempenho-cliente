@@ -29,16 +29,13 @@ TAG_ROSA = "#ED5A6E"
 TAG_ROXO = "#A485F2"
 TAG_CINZA = "#6A6864"
 TAG_BRANCO = "#FFFFFF"
-TAG_VERDE   = "#15803D"   # verde escuro — Média FIA
-TAG_AMBER   = "#D97706"   # âmbar/dourado — 67% FIA + 33% CDI
-
 CHART_COLORS = {
-    "carteira":    TAG_AZUL_ESCURO,   # azul escuro
-    "ibovespa":    TAG_LARANJA,        # laranja
-    "cdi":         TAG_ROXO,           # roxo
-    "bench67":     TAG_ROSA,           # rosa/vermelho
-    "fia":         TAG_VERDE,          # verde escuro
-    "bench67fia":  TAG_AMBER,          # âmbar/dourado
+    "carteira":    "#002A6E",   # azul marinho
+    "ibovespa":    "#FF6600",   # laranja vivo
+    "cdi":         "#7C3AED",   # violeta
+    "bench67":     "#DC2626",   # vermelho
+    "fia":         "#16A34A",   # verde
+    "bench67fia":  "#0891B2",   # ciano/azul-piscina
 }
 
 _logo_path = os.path.join(_DIR, "tag_logo.png")
