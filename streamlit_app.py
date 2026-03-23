@@ -281,6 +281,16 @@ def load_portfolio(path):
 
 @st.cache_data(ttl=86400)
 def load_ibov(start, end):
+    # Primary: local CSV (pre-downloaded, always available)
+    _ibov_csv = os.path.join(_DIR, "ibov_data.csv")
+    if os.path.exists(_ibov_csv):
+        close = pd.read_csv(_ibov_csv, parse_dates=["Date"])
+        close["Date"] = pd.to_datetime(close["Date"]).dt.tz_localize(None)
+        close = close[(close["Date"] >= start) & (close["Date"] <= end + timedelta(days=5))]
+        close = close.dropna(subset=["Close"]).sort_values("Date").reset_index(drop=True)
+        if len(close) > 10:
+            return close
+    # Fallback: yfinance
     try:
         ibov = yf.download("^BVSP", start=start, end=end + timedelta(days=5), progress=False)
         if not ibov.empty:
