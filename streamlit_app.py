@@ -646,8 +646,7 @@ summary_data = {
 summary_df = pd.DataFrame(summary_data)
 st.markdown(style_table(summary_df, highlight_best=True), unsafe_allow_html=True)
 if fia_ok:
-    fia_start_label = merged.loc[merged["FIA_cum"].notna(), "Date"].iloc[0].strftime("%m/%Y") if merged["FIA_cum"].notna().any() else "—"
-    st.caption(f"* Média FIA: retorno médio ponderado igualmente de {merged['FIA_cum'].notna().sum()} fundos de ações ativos com histórico a partir de {fia_start_label}. Inclui apenas fundos já existentes e ainda ativos, sem viés de sobrevivência.")
+    st.caption("* Média FIA: média ponderada igualmente de 229 fundos de ações que já existiam no início da carteira e ainda estão ativos — elimina viés de sobrevivência. Fonte: CVM/Inf. Diário.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
