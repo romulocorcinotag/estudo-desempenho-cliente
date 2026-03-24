@@ -667,7 +667,7 @@ summary_data = {
 summary_df = pd.DataFrame(summary_data)
 st.markdown(style_table(summary_df, highlight_best=True), unsafe_allow_html=True)
 if fia_ok:
-    st.caption("* Média FIA: média ponderada igualmente de 288 fundos de ações (categorias: Livre, Valor/Crescimento e Small Caps) que existiam no início da carteira, incluindo os que fecharam ao longo do tempo — sem viés de sobrevivência. Fonte: CVM/Inf. Diário.")
+    st.caption("* Média FIA: média ponderada igualmente de 274 fundos de ações (categorias: Livre, Valor/Crescimento e Small Caps) que existiam no início da carteira, incluindo os que fecharam ao longo do tempo — sem viés de sobrevivência. Fonte: CVM/Inf. Diário.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
