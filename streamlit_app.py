@@ -48,8 +48,8 @@ ALL_BENCHMARKS = {
     "67% Ibov + 33% CDI":   "bench67",
     "55% Ibov + 45% CDI":   "bench55",
     "Média FIA*":           "fia",
-    "67% FIA + 33% CDI*":   "bench67fia",
-    "55% FIA + 45% CDI*":   "bench55fia",
+    "67% Média FIAs + 33% CDI*":   "bench67fia",
+    "55% Média FIAs + 45% CDI*":   "bench55fia",
 }
 
 _logo_path = os.path.join(_DIR, "tag_logo.png")
@@ -795,10 +795,10 @@ if show_fia:
     summary_data["Média FIA*"] = [fmt_pct(fia_total), fmt_pct(fia_ann), fmt_pct(fia_vol), fmt_pct(_fdd), fmt_f(fia_sharpe)]
 if show_bench67fia:
     _b67dd = bench67fia_dd.dropna().min() if bench67fia_dd.notna().any() else np.nan
-    summary_data["67% FIA + 33% CDI*"] = [fmt_pct(bench67fia_total), fmt_pct(bench67fia_ann), fmt_pct(bench67fia_vol), fmt_pct(_b67dd), fmt_f(bench67fia_sharpe)]
+    summary_data["67% Média FIAs + 33% CDI*"] = [fmt_pct(bench67fia_total), fmt_pct(bench67fia_ann), fmt_pct(bench67fia_vol), fmt_pct(_b67dd), fmt_f(bench67fia_sharpe)]
 if show_bench55fia:
     _b55dd = bench55fia_dd.dropna().min() if bench55fia_dd.notna().any() else np.nan
-    summary_data["55% FIA + 45% CDI*"] = [fmt_pct(bench55fia_total), fmt_pct(bench55fia_ann), fmt_pct(bench55fia_vol), fmt_pct(_b55dd), fmt_f(bench55fia_sharpe)]
+    summary_data["55% Média FIAs + 45% CDI*"] = [fmt_pct(bench55fia_total), fmt_pct(bench55fia_ann), fmt_pct(bench55fia_vol), fmt_pct(_b55dd), fmt_f(bench55fia_sharpe)]
 summary_df = pd.DataFrame(summary_data)
 st.markdown(style_table(summary_df, highlight_best=True), unsafe_allow_html=True)
 if fia_ok:
@@ -827,9 +827,9 @@ if show_bench55:
 if show_fia and merged["FIA_cum"].notna().any():
     fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["FIA_cum"] * 100, name="Média FIA*", line=dict(width=1.8, color=CHART_COLORS["fia"], dash="longdash")))
 if show_bench67fia:
-    fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench67FIA_cum"] * 100, name="67% FIA + 33% CDI*", line=dict(width=1.8, color=CHART_COLORS["bench67fia"], dash="dashdot")))
+    fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench67FIA_cum"] * 100, name="67% Média FIAs + 33% CDI*", line=dict(width=1.8, color=CHART_COLORS["bench67fia"], dash="dashdot")))
 if show_bench55fia:
-    fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench55FIA_cum"] * 100, name="55% FIA + 45% CDI*", line=dict(width=1.8, color=CHART_COLORS["bench55fia"], dash="dashdot")))
+    fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench55FIA_cum"] * 100, name="55% Média FIAs + 45% CDI*", line=dict(width=1.8, color=CHART_COLORS["bench55fia"], dash="dashdot")))
 tag_chart_layout(fig1, height=500, yaxis_title="Retorno Acumulado (%)")
 st.plotly_chart(fig1, use_container_width=True)
 
@@ -854,9 +854,9 @@ if show_bench55:
 if show_fia and fia_dd.notna().any():
     fig2.add_trace(go.Scatter(x=merged["Date"], y=fia_dd * 100, name="Média FIA*", line=dict(color=CHART_COLORS["fia"], width=1, dash="longdash")))
 if show_bench67fia and bench67fia_dd.notna().any():
-    fig2.add_trace(go.Scatter(x=merged["Date"], y=bench67fia_dd * 100, name="67% FIA + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1, dash="dashdot")))
+    fig2.add_trace(go.Scatter(x=merged["Date"], y=bench67fia_dd * 100, name="67% Média FIAs + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1, dash="dashdot")))
 if show_bench55fia and bench55fia_dd.notna().any():
-    fig2.add_trace(go.Scatter(x=merged["Date"], y=bench55fia_dd * 100, name="55% FIA + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1, dash="dashdot")))
+    fig2.add_trace(go.Scatter(x=merged["Date"], y=bench55fia_dd * 100, name="55% Média FIAs + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1, dash="dashdot")))
 tag_chart_layout(fig2, height=350, yaxis_title="Drawdown (%)")
 st.plotly_chart(fig2, use_container_width=True)
 
@@ -934,11 +934,11 @@ if show_fia:
     fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["FIA_ret"] * 100, name="Média FIA*", marker_color=CHART_COLORS["fia"]))
     _yr_cols.append(("FIA_ret", "Média FIA*"))
 if show_bench67fia:
-    fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["B67FIA_ret"] * 100, name="67% FIA + 33% CDI*", marker_color=CHART_COLORS["bench67fia"]))
-    _yr_cols.append(("B67FIA_ret", "67% FIA + 33% CDI*"))
+    fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["B67FIA_ret"] * 100, name="67% Média FIAs + 33% CDI*", marker_color=CHART_COLORS["bench67fia"]))
+    _yr_cols.append(("B67FIA_ret", "67% Média FIAs + 33% CDI*"))
 if show_bench55fia:
-    fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["B55FIA_ret"] * 100, name="55% FIA + 45% CDI*", marker_color=CHART_COLORS["bench55fia"]))
-    _yr_cols.append(("B55FIA_ret", "55% FIA + 45% CDI*"))
+    fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["B55FIA_ret"] * 100, name="55% Média FIAs + 45% CDI*", marker_color=CHART_COLORS["bench55fia"]))
+    _yr_cols.append(("B55FIA_ret", "55% Média FIAs + 45% CDI*"))
 
 tag_chart_layout(fig3, height=450, yaxis_title="Retorno (%)")
 fig3.update_layout(barmode="group")
@@ -1000,10 +1000,10 @@ for roll_label, roll_window in rolling_windows.items():
             fig_roll.add_trace(go.Scatter(x=merged["Date"], y=fia_roll * 100, name=f"Média FIA* (media: {fia_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["fia"], width=1.5, dash="longdash")))
         if show_bench67fia and merged["FIA_cum"].notna().sum() > roll_window:
             b67fia_roll = rolling_return(1 + merged["Bench67FIA_cum"], roll_window)
-            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=b67fia_roll * 100, name=f"67% FIA + 33% CDI* (media: {b67fia_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["bench67fia"], width=1.5, dash="dashdot")))
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=b67fia_roll * 100, name=f"67% Média FIAs + 33% CDI* (media: {b67fia_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["bench67fia"], width=1.5, dash="dashdot")))
         if show_bench55fia and merged["FIA_cum"].notna().sum() > roll_window:
             b55fia_roll = rolling_return(1 + merged["Bench55FIA_cum"], roll_window)
-            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=b55fia_roll * 100, name=f"55% FIA + 45% CDI* (media: {b55fia_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["bench55fia"], width=1.5, dash="dashdot")))
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=b55fia_roll * 100, name=f"55% Média FIAs + 45% CDI* (media: {b55fia_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["bench55fia"], width=1.5, dash="dashdot")))
 
         tag_chart_layout(fig_roll, height=430, yaxis_title=f"Retorno {roll_label} (%)")
         st.plotly_chart(fig_roll, use_container_width=True)
@@ -1042,9 +1042,9 @@ if show_bench55:
 if show_fia and merged["FIA_cum"].notna().any():
     fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["FIA_cum"]) * 100, name=f"{port_label} vs Média FIA*", line=dict(color=CHART_COLORS["fia"], width=1.8, dash="longdash")))
 if show_bench67fia:
-    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench67FIA_cum"]) * 100, name=f"{port_label} vs 67% FIA + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1.8, dash="dashdot")))
+    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench67FIA_cum"]) * 100, name=f"{port_label} vs 67% Média FIAs + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1.8, dash="dashdot")))
 if show_bench55fia:
-    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench55FIA_cum"]) * 100, name=f"{port_label} vs 55% FIA + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1.8, dash="dashdot")))
+    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench55FIA_cum"]) * 100, name=f"{port_label} vs 55% Média FIAs + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1.8, dash="dashdot")))
 fig5.add_hline(y=0, line_dash="dash", line_color=TAG_CINZA)
 tag_chart_layout(fig5, height=400, yaxis_title="Excesso (p.p.)", ticksuffix=" p.p.")
 st.plotly_chart(fig5, use_container_width=True)
@@ -1095,8 +1095,8 @@ def _period_row(label, subset):
     if show_bench67: r["67% Ibov + 33% CDI"] = _cum_ret(subset["Bench67_cum"], 0, -1)
     if show_bench55: r["55% Ibov + 45% CDI"] = _cum_ret(subset["Bench55_cum"], 0, -1)
     if show_fia: r["Média FIA*"] = _fia_period_ret(subset)
-    if show_bench67fia: r["67% FIA + 33% CDI*"] = _cum_ret(subset["Bench67FIA_cum"], 0, -1)
-    if show_bench55fia: r["55% FIA + 45% CDI*"] = _cum_ret(subset["Bench55FIA_cum"], 0, -1)
+    if show_bench67fia: r["67% Média FIAs + 33% CDI*"] = _cum_ret(subset["Bench67FIA_cum"], 0, -1)
+    if show_bench55fia: r["55% Média FIAs + 45% CDI*"] = _cum_ret(subset["Bench55FIA_cum"], 0, -1)
     return r
 
 windows = {"1M": 21, "3M": 63, "6M": 126, "1A": 252, "2A": 504, "3A": 756, "5A": 1260, "Desde Inicio": len(merged_full) - 1}
@@ -1156,10 +1156,10 @@ if n_days >= 252:
         fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["FIA_vol12"] * 100, name="Média FIA*", line=dict(color=CHART_COLORS["fia"], width=1.5, dash="longdash")))
     if show_bench67fia:
         merged["B67FIA_vol12"] = merged["Bench67FIA_ret"].rolling(252).std() * np.sqrt(252)
-        fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["B67FIA_vol12"] * 100, name="67% FIA + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1.5, dash="dashdot")))
+        fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["B67FIA_vol12"] * 100, name="67% Média FIAs + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1.5, dash="dashdot")))
     if show_bench55fia:
         merged["B55FIA_vol12"] = merged["Bench55FIA_ret"].rolling(252).std() * np.sqrt(252)
-        fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["B55FIA_vol12"] * 100, name="55% FIA + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1.5, dash="dashdot")))
+        fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["B55FIA_vol12"] * 100, name="55% Média FIAs + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1.5, dash="dashdot")))
     tag_chart_layout(fig7, height=380, yaxis_title="Volatilidade (%)")
     st.plotly_chart(fig7, use_container_width=True)
 
