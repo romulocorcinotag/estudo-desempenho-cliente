@@ -40,6 +40,7 @@ CHART_COLORS = {
     "bench67fia":  "#E8590C",   # laranja escuro
     "bench55fia":  "#059669",   # verde escuro
     "hybrid":      "#6D28D9",   # roxo escuro
+    "cm":          "#D97706",   # amarelo/âmbar escuro
 }
 
 # All available benchmark keys (label -> internal key)
@@ -51,7 +52,27 @@ ALL_BENCHMARKS = {
     "Média FIA*":           "fia",
     "67% Média FIAs + 33% CDI*":   "bench67fia",
     "55% Média FIAs + 45% CDI*":   "bench55fia",
+    "Carteira Modelo":              "cm",
 }
+
+# ── Carteira Modelo: assets, proxies, and default weights ────────────────────
+# Proxy types: "ibov" (Ibovespa), "fia" (Média FIA), "cdi" (CDI)
+CM_ASSETS = [
+    {"key": "bova11",        "name": "BOVA11",              "proxy": "ibov", "pct": 31.66},
+    {"key": "regio",         "name": "Régio FIA",           "proxy": "fia",  "pct": 6.94},
+    {"key": "algido",        "name": "Algido FIA",          "proxy": "fia",  "pct": 1.01},
+    {"key": "norte",         "name": "Norte Long Bias FIA", "proxy": "fia",  "pct": 0.00},
+    {"key": "sharp",         "name": "Sharp Long Biased FIA","proxy": "fia", "pct": 0.00},
+    {"key": "tarpon",        "name": "Tarpon GT FIA",       "proxy": "fia",  "pct": 4.82},
+    {"key": "kiron",         "name": "Kiron FIA",           "proxy": "fia",  "pct": 5.00},
+    {"key": "real_investor", "name": "Real Investor FIA",   "proxy": "fia",  "pct": 10.00},
+    {"key": "atmos",         "name": "TB Atmos FIA",        "proxy": "fia",  "pct": 16.91},
+    {"key": "tag_pe",        "name": "TAG Private Equity",  "proxy": "cdi",  "pct": 4.18},
+    {"key": "tag_ventures",  "name": "TAG Ventures",        "proxy": "cdi",  "pct": 2.78},
+    {"key": "lc_iii",        "name": "LC III FIDC",         "proxy": "cdi",  "pct": 2.22},
+    {"key": "ntnb",          "name": "NTN-B IPCA+6%",       "proxy": "cdi",  "pct": 9.48},
+    {"key": "cdi_cash",      "name": "CDI (Caixa)",         "proxy": "cdi",  "pct": 5.00},
+]
 
 _logo_path = os.path.join(_DIR, "tag_logo.png")
 
@@ -667,6 +688,29 @@ show_bench55 = "bench55" in _sel_bench and ibov_ok
 show_fia = "fia" in _sel_bench and fia_ok
 show_bench67fia = "bench67fia" in _sel_bench and fia_ok
 show_bench55fia = "bench55fia" in _sel_bench and fia_ok
+show_cm = "cm" in _sel_bench
+
+# ── Carteira Modelo weights editor ──
+if show_cm:
+    st.sidebar.markdown(f'<div style="border-top:1px solid rgba(255,136,83,0.3);margin:0.5rem 0;"></div>', unsafe_allow_html=True)
+    st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Pesos Carteira Modelo (%)</p>', unsafe_allow_html=True)
+    cm_weights = {}
+    for asset in CM_ASSETS:
+        cm_weights[asset["key"]] = st.sidebar.number_input(
+            asset["name"],
+            min_value=0.0, max_value=100.0,
+            value=asset["pct"],
+            step=0.5,
+            format="%.2f",
+            key=f"cm_{asset['key']}",
+        )
+    _cm_total = sum(cm_weights.values())
+    if abs(_cm_total - 100.0) > 0.1:
+        st.sidebar.warning(f"Soma dos pesos: {_cm_total:.2f}% (deveria ser 100%)")
+    else:
+        st.sidebar.success(f"Total: {_cm_total:.2f}%")
+else:
+    cm_weights = {a["key"]: a["pct"] for a in CM_ASSETS}
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"""
@@ -704,6 +748,19 @@ if compare_mode:
     consol_merged = build_merged(consol_filtered, ibov_raw, cdi_raw, fia_raw)
 
 merged = build_merged(port_filtered, ibov_raw, cdi_raw, fia_raw)
+
+# ── Carteira Modelo: compute composite returns ──
+if show_cm:
+    _proxy_map = {"ibov": "Ibov_daily_ret", "fia": "ret_fia", "cdi": "CDI_daily_ret"}
+    _cm_daily = pd.Series(0.0, index=merged.index)
+    for asset in CM_ASSETS:
+        w = cm_weights[asset["key"]] / 100.0
+        if w > 0:
+            proxy_col = _proxy_map[asset["proxy"]]
+            _cm_daily += w * merged[proxy_col].fillna(0)
+    merged["CM_factor"] = (1 + _cm_daily).cumprod()
+    merged["CM_cum"] = merged["CM_factor"] - 1
+    merged["CM_ret"] = merged["CM_factor"].pct_change()
 
 start_date = merged["Date"].iloc[0]
 end_date = merged["Date"].iloc[-1]
@@ -781,6 +838,11 @@ fia_sharpe = _sharpe(merged["FIA_ret"]) if fia_ok else np.nan
 bench67fia_sharpe = _sharpe(merged["Bench67FIA_ret"]) if fia_ok else np.nan
 bench55fia_sharpe = _sharpe(merged["Bench55FIA_ret"]) if fia_ok else np.nan
 
+cm_total = merged["CM_cum"].iloc[-1] if show_cm else np.nan
+cm_ann = annualized_return(cm_total, total_days) if show_cm else np.nan
+cm_vol = annualized_vol(merged["CM_ret"].dropna()) if show_cm else np.nan
+cm_sharpe = _sharpe(merged["CM_ret"]) if show_cm else np.nan
+
 port_dd = calc_drawdown(1 + merged["Portfolio_cum"])
 consol_dd = calc_drawdown(1 + consol_merged["Portfolio_cum"]) if compare_mode else pd.Series(np.nan, index=merged.index)
 ibov_dd = calc_drawdown(1 + merged["Ibov_cum"]) if ibov_ok else pd.Series(0, index=merged.index)
@@ -789,6 +851,7 @@ bench55_dd = calc_drawdown(1 + merged["Bench55_cum"]) if ibov_ok else pd.Series(
 fia_dd = calc_drawdown(1 + merged["FIA_cum"].ffill()) if fia_ok and merged["FIA_cum"].notna().any() else pd.Series(np.nan, index=merged.index)
 bench67fia_dd = calc_drawdown(1 + merged["Bench67FIA_cum"]) if fia_ok else pd.Series(np.nan, index=merged.index)
 bench55fia_dd = calc_drawdown(1 + merged["Bench55FIA_cum"]) if fia_ok else pd.Series(np.nan, index=merged.index)
+cm_dd = calc_drawdown(1 + merged["CM_cum"]) if show_cm else pd.Series(np.nan, index=merged.index)
 
 # ── Painel de Destaques ──
 total_pct_cdi_quick = port_total / cdi_total * 100 if cdi_total > 0 else 0
@@ -833,6 +896,9 @@ if show_bench67fia:
 if show_bench55fia:
     _b55dd = bench55fia_dd.dropna().min() if bench55fia_dd.notna().any() else np.nan
     summary_data["55% Média FIAs + 45% CDI*"] = [fmt_pct(bench55fia_total), fmt_pct(bench55fia_ann), fmt_pct(bench55fia_vol), fmt_pct(_b55dd), fmt_f(bench55fia_sharpe)]
+if show_cm:
+    _cmdd = cm_dd.dropna().min() if cm_dd.notna().any() else np.nan
+    summary_data["Carteira Modelo"] = [fmt_pct(cm_total), fmt_pct(cm_ann), fmt_pct(cm_vol), fmt_pct(_cmdd), fmt_f(cm_sharpe)]
 summary_df = pd.DataFrame(summary_data)
 st.markdown(style_table(summary_df, highlight_best=True), unsafe_allow_html=True)
 if fia_ok:
@@ -866,6 +932,8 @@ if show_bench67fia:
     fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench67FIA_cum"] * 100, name="67% Média FIAs + 33% CDI*", line=dict(width=1.8, color=CHART_COLORS["bench67fia"], dash="dashdot")))
 if show_bench55fia:
     fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench55FIA_cum"] * 100, name="55% Média FIAs + 45% CDI*", line=dict(width=1.8, color=CHART_COLORS["bench55fia"], dash="dashdot")))
+if show_cm:
+    fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["CM_cum"] * 100, name="Carteira Modelo", line=dict(width=2.5, color=CHART_COLORS["cm"])))
 tag_chart_layout(fig1, height=500, yaxis_title="Retorno Acumulado (%)")
 st.plotly_chart(fig1, use_container_width=True)
 
@@ -893,6 +961,8 @@ if show_bench67fia and bench67fia_dd.notna().any():
     fig2.add_trace(go.Scatter(x=merged["Date"], y=bench67fia_dd * 100, name="67% Média FIAs + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1, dash="dashdot")))
 if show_bench55fia and bench55fia_dd.notna().any():
     fig2.add_trace(go.Scatter(x=merged["Date"], y=bench55fia_dd * 100, name="55% Média FIAs + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1, dash="dashdot")))
+if show_cm and cm_dd.notna().any():
+    fig2.add_trace(go.Scatter(x=merged["Date"], y=cm_dd * 100, name="Carteira Modelo", line=dict(color=CHART_COLORS["cm"], width=2)))
 tag_chart_layout(fig2, height=350, yaxis_title="Drawdown (%)")
 st.plotly_chart(fig2, use_container_width=True)
 
@@ -927,9 +997,13 @@ yearly = merged.groupby("Year").agg(
     B67FIA_end=("Bench67FIA_cum",  lambda x: 1 + x.iloc[-1]),
     B55FIA_start=("Bench55FIA_cum", lambda x: 1 + x.iloc[0]),
     B55FIA_end=("Bench55FIA_cum",  lambda x: 1 + x.iloc[-1]),
+    **({} if not show_cm else {"CM_start": ("CM_cum", lambda x: 1 + x.iloc[0]), "CM_end": ("CM_cum", lambda x: 1 + x.iloc[-1])}),
 ).reset_index()
 
-for prefix in ["Port", "Ibov", "CDI", "Bench67", "Bench55", "B67FIA", "B55FIA"]:
+_yr_prefixes = ["Port", "Ibov", "CDI", "Bench67", "Bench55", "B67FIA", "B55FIA"]
+if show_cm:
+    _yr_prefixes.append("CM")
+for prefix in _yr_prefixes:
     yearly[f"{prefix}_ret"] = yearly[f"{prefix}_end"] / yearly[f"{prefix}_start"] - 1
 
 # FIA yearly returns — only for years where we have data
@@ -975,6 +1049,9 @@ if show_bench67fia:
 if show_bench55fia:
     fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["B55FIA_ret"] * 100, name="55% Média FIAs + 45% CDI*", marker_color=CHART_COLORS["bench55fia"]))
     _yr_cols.append(("B55FIA_ret", "55% Média FIAs + 45% CDI*"))
+if show_cm:
+    fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["CM_ret"] * 100, name="Carteira Modelo", marker_color=CHART_COLORS["cm"]))
+    _yr_cols.append(("CM_ret", "Carteira Modelo"))
 
 tag_chart_layout(fig3, height=450, yaxis_title="Retorno (%)")
 fig3.update_layout(barmode="group")
@@ -1040,6 +1117,9 @@ for roll_label, roll_window in rolling_windows.items():
         if show_bench55fia and merged["FIA_cum"].notna().sum() > roll_window:
             b55fia_roll = rolling_return(1 + merged["Bench55FIA_cum"], roll_window)
             fig_roll.add_trace(go.Scatter(x=merged["Date"], y=b55fia_roll * 100, name=f"55% Média FIAs + 45% CDI* (media: {b55fia_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["bench55fia"], width=1.5, dash="dashdot")))
+        if show_cm:
+            cm_roll = rolling_return(1 + merged["CM_cum"], roll_window)
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=cm_roll * 100, name=f"Carteira Modelo (media: {cm_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["cm"], width=2)))
 
         tag_chart_layout(fig_roll, height=430, yaxis_title=f"Retorno {roll_label} (%)")
         st.plotly_chart(fig_roll, use_container_width=True)
@@ -1081,6 +1161,8 @@ if show_bench67fia:
     fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench67FIA_cum"]) * 100, name=f"{port_label} vs 67% Média FIAs + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1.8, dash="dashdot")))
 if show_bench55fia:
     fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench55FIA_cum"]) * 100, name=f"{port_label} vs 55% Média FIAs + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1.8, dash="dashdot")))
+if show_cm:
+    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["CM_cum"]) * 100, name=f"{port_label} vs Carteira Modelo", line=dict(color=CHART_COLORS["cm"], width=2)))
 fig5.add_hline(y=0, line_dash="dash", line_color=TAG_CINZA)
 tag_chart_layout(fig5, height=400, yaxis_title="Excesso (p.p.)", ticksuffix=" p.p.")
 st.plotly_chart(fig5, use_container_width=True)
@@ -1133,6 +1215,7 @@ def _period_row(label, subset):
     if show_fia: r["Média FIA*"] = _fia_period_ret(subset)
     if show_bench67fia: r["67% Média FIAs + 33% CDI*"] = _cum_ret(subset["Bench67FIA_cum"], 0, -1)
     if show_bench55fia: r["55% Média FIAs + 45% CDI*"] = _cum_ret(subset["Bench55FIA_cum"], 0, -1)
+    if show_cm: r["Carteira Modelo"] = _cum_ret(subset["CM_cum"], 0, -1)
     return r
 
 windows = {"1M": 21, "3M": 63, "6M": 126, "1A": 252, "2A": 504, "3A": 756, "5A": 1260, "Desde Inicio": len(merged_full) - 1}
@@ -1196,6 +1279,9 @@ if n_days >= 252:
     if show_bench55fia:
         merged["B55FIA_vol12"] = merged["Bench55FIA_ret"].rolling(252).std() * np.sqrt(252)
         fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["B55FIA_vol12"] * 100, name="55% Média FIAs + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1.5, dash="dashdot")))
+    if show_cm:
+        merged["CM_vol12"] = merged["CM_ret"].rolling(252).std() * np.sqrt(252)
+        fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["CM_vol12"] * 100, name="Carteira Modelo", line=dict(color=CHART_COLORS["cm"], width=2)))
     tag_chart_layout(fig7, height=380, yaxis_title="Volatilidade (%)")
     st.plotly_chart(fig7, use_container_width=True)
 
@@ -1219,6 +1305,12 @@ if compare_mode and "Consol_ret" in yearly.columns:
         (yearly["Consol_ret"] / yearly["CDI_ret"] * 100).round(1),
         np.nan,
     )
+if show_cm and "CM_ret" in yearly.columns:
+    yearly_pct_cdi["% CDI Cart. Modelo"] = np.where(
+        yearly["CDI_ret"] > 0,
+        (yearly["CM_ret"] / yearly["CDI_ret"] * 100).round(1),
+        np.nan,
+    )
 total_pct_cdi = port_total / cdi_total * 100 if cdi_total > 0 else 0
 
 c1, c2 = st.columns([1, 2])
@@ -1227,6 +1319,9 @@ with c1:
     if compare_mode:
         consol_pct_cdi = consol_total / cdi_total * 100 if cdi_total > 0 else 0
         st.metric("% do CDI Consolidada", f"{consol_pct_cdi:.1f}%")
+    if show_cm:
+        cm_pct_cdi = cm_total / cdi_total * 100 if cdi_total > 0 else 0
+        st.metric("% do CDI Cart. Modelo", f"{cm_pct_cdi:.1f}%")
     pct_display = yearly_pct_cdi.copy()
     pct_display["Year"] = pct_display["Year"].astype(str)
     pct_display.rename(columns={"Year": "Ano"}, inplace=True)
@@ -1240,6 +1335,9 @@ with c2:
     fig8.add_trace(go.Bar(x=yearly_pct_cdi["Year"], y=yearly_pct_cdi[f"% CDI {port_label}"], name=port_label, marker_color=colors))
     if compare_mode and "% CDI Consolidada" in yearly_pct_cdi.columns:
         fig8.add_trace(go.Bar(x=yearly_pct_cdi["Year"], y=yearly_pct_cdi["% CDI Consolidada"], name="Consolidada", marker_color=CHART_COLORS["consolidada"]))
+    if show_cm and "% CDI Cart. Modelo" in yearly_pct_cdi.columns:
+        fig8.add_trace(go.Bar(x=yearly_pct_cdi["Year"], y=yearly_pct_cdi["% CDI Cart. Modelo"], name="Carteira Modelo", marker_color=CHART_COLORS["cm"]))
+    if compare_mode or show_cm:
         fig8.update_layout(barmode="group")
     fig8.add_hline(y=100, line_dash="dash", line_color=TAG_VERMELHO, annotation_text="100% CDI", annotation_font_color=TAG_VERMELHO)
     tag_chart_layout(fig8, height=400, yaxis_title="% do CDI", ticksuffix="%")
@@ -1252,8 +1350,9 @@ with c2:
 
 st.markdown(f"""<div class="disclaimer">
 <strong>Aviso:</strong> Este material tem caráter meramente informativo e não constitui oferta, solicitação de oferta ou recomendação
-de investimento. Rentabilidade passada não representa garantia de rentabilidade futura. O benchmark fictício (67% Ibovespa + 33% CDI)
-é utilizado apenas para fins comparativos, refletindo a alocação aproximada da carteira.
+de investimento. Rentabilidade passada não representa garantia de rentabilidade futura. Os benchmarks compostos
+são utilizados apenas para fins comparativos. A Carteira Modelo usa proxies por classe de ativo:
+BOVA11 → Ibovespa, Fundos de Ações → Média FIA*, Crédito/NTN-B/CDI → CDI.
 </div>""", unsafe_allow_html=True)
 
 st.markdown(f"""<div class="tag-footer">
