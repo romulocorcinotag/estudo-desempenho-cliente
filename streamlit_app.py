@@ -252,8 +252,8 @@ st.markdown(f"""
         margin-bottom: 0.2rem !important;
     }}
     section[data-testid="stSidebar"] div[data-testid="stExpander"] input {{
-        background: rgba(255,255,255,0.15) !important;
-        color: #FFFFFF !important;
+        background: rgba(255,255,255,0.9) !important;
+        color: {TAG_VERMELHO} !important;
         border: 1px solid rgba(255,136,83,0.3) !important;
         border-radius: 6px !important;
         font-size: 0.78rem !important;
