@@ -384,7 +384,7 @@ def load_cdi(start, end):
     chunks = []
     d = start
     while d <= end:
-        d_end = min(d + timedelta(days=3650), end)
+        d_end = min(d + timedelta(days=365), end)
         di, df_str = d.strftime("%d/%m/%Y"), d_end.strftime("%d/%m/%Y")
         url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial={di}&dataFinal={df_str}"
         try:
@@ -397,10 +397,10 @@ def load_cdi(start, end):
     if not chunks:
         return pd.DataFrame(columns=["Date", "CDI_pct"])
     cdi = pd.DataFrame(chunks)
-    cdi["data"] = pd.to_datetime(cdi["data"], format="%d/%m/%Y")
-    cdi["valor"] = cdi["valor"].astype(float)
-    cdi = cdi.sort_values("data").drop_duplicates(subset="data").reset_index(drop=True)
-    cdi.columns = ["Date", "CDI_pct"]
+    cdi.rename(columns={"data": "Date", "valor": "CDI_pct"}, inplace=True)
+    cdi["Date"] = pd.to_datetime(cdi["Date"], format="%d/%m/%Y")
+    cdi["CDI_pct"] = cdi["CDI_pct"].astype(float)
+    cdi = cdi.sort_values("Date").drop_duplicates(subset="Date").reset_index(drop=True)
     return cdi
 
 
