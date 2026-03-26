@@ -70,7 +70,7 @@ CM_ASSETS = [
     {"key": "tag_pe",        "name": "TAG Private Equity",  "proxy": "cdi",  "pct": 4.18},
     {"key": "tag_ventures",  "name": "TAG Ventures",        "proxy": "cdi",  "pct": 2.78},
     {"key": "lc_iii",        "name": "LC III FIDC",         "proxy": "cdi",  "pct": 2.22},
-    {"key": "ntnb",          "name": "NTN-B IPCA+6%",       "proxy": "cdi",  "pct": 9.48},
+    {"key": "ntnb",          "name": "NTN-B IPCA+6%",       "proxy": "imab", "pct": 9.48},
     {"key": "cdi_cash",      "name": "CDI (Caixa)",         "proxy": "cdi",  "pct": 5.00},
 ]
 
@@ -382,6 +382,17 @@ def load_fia_benchmark():
     return df.sort_values("Date").reset_index(drop=True)
 
 
+@st.cache_data(ttl=3600)
+def load_imab5p():
+    """Carrega IMA-B 5+ (proxy NTN-B longa) de CSV pré-baixado."""
+    path = os.path.join(_DIR, "imab5p_data.csv")
+    if not os.path.exists(path):
+        return pd.DataFrame(columns=["Date", "ret_imab"])
+    df = pd.read_csv(path, parse_dates=["Date"])
+    df["ret_imab"] = pd.to_numeric(df["ret_imab"], errors="coerce")
+    return df.dropna(subset=["ret_imab"]).sort_values("Date").reset_index(drop=True)
+
+
 def calc_drawdown(s):
     return (s - s.cummax()) / s.cummax()
 
@@ -471,7 +482,7 @@ def insight_box(text, icon=""):
     </div>""", unsafe_allow_html=True)
 
 
-def build_merged(port_df, ibov_df, cdi_df, fia_df=None):
+def build_merged(port_df, ibov_df, cdi_df, fia_df=None, imab_df=None):
     merged = port_df[["Date", "CotaRendimento", "Patrimonio"]].copy()
     if len(ibov_df) > 0:
         merged = merged.merge(ibov_df, on="Date", how="left")
@@ -482,6 +493,10 @@ def build_merged(port_df, ibov_df, cdi_df, fia_df=None):
         merged = merged.merge(fia_df, on="Date", how="left")
     else:
         merged["ret_fia"] = np.nan
+    if imab_df is not None and len(imab_df) > 0:
+        merged = merged.merge(imab_df[["Date", "ret_imab"]], on="Date", how="left")
+    else:
+        merged["ret_imab"] = np.nan
     merged = merged.sort_values("Date").reset_index(drop=True)
     merged["Close"] = merged["Close"].ffill().bfill()
     merged["CDI_pct"] = merged["CDI_pct"].fillna(0)
@@ -588,6 +603,7 @@ full_end = port_full["Date"].max()
 ibov_raw = load_ibov(full_start, full_end)
 cdi_raw = load_cdi(full_start, full_end)
 fia_raw = load_fia_benchmark()
+imab_raw = load_imab5p()
 
 ibov_ok = len(ibov_raw) > 0 and ibov_raw["Close"].notna().any()
 fia_ok = len(fia_raw) > 0
@@ -745,13 +761,13 @@ if compare_mode:
     if len(consol_filtered) < 2:
         st.error("Período selecionado não tem dados suficientes para a carteira consolidada.")
         st.stop()
-    consol_merged = build_merged(consol_filtered, ibov_raw, cdi_raw, fia_raw)
+    consol_merged = build_merged(consol_filtered, ibov_raw, cdi_raw, fia_raw, imab_raw)
 
-merged = build_merged(port_filtered, ibov_raw, cdi_raw, fia_raw)
+merged = build_merged(port_filtered, ibov_raw, cdi_raw, fia_raw, imab_raw)
 
 # ── Carteira Modelo: compute composite returns ──
 if show_cm:
-    _proxy_map = {"ibov": "Ibov_daily_ret", "fia": "ret_fia", "cdi": "CDI_daily_ret"}
+    _proxy_map = {"ibov": "Ibov_daily_ret", "fia": "ret_fia", "cdi": "CDI_daily_ret", "imab": "ret_imab"}
     _cm_daily = pd.Series(0.0, index=merged.index)
     for asset in CM_ASSETS:
         w = cm_weights[asset["key"]] / 100.0
@@ -1191,7 +1207,7 @@ st.plotly_chart(fig6, use_container_width=True)
 section_title("Retornos por Período")
 st.caption("Retorno da carteira e benchmarks em diferentes horizontes de tempo.")
 
-merged_full = build_merged(port_full, ibov_raw, cdi_raw, fia_raw)
+merged_full = build_merged(port_full, ibov_raw, cdi_raw, fia_raw, imab_raw)
 
 def _fia_period_ret(subset):
     """Return FIA cumulative return for a subset, or NaN if no data."""
@@ -1352,7 +1368,7 @@ st.markdown(f"""<div class="disclaimer">
 <strong>Aviso:</strong> Este material tem caráter meramente informativo e não constitui oferta, solicitação de oferta ou recomendação
 de investimento. Rentabilidade passada não representa garantia de rentabilidade futura. Os benchmarks compostos
 são utilizados apenas para fins comparativos. A Carteira Modelo usa proxies por classe de ativo:
-BOVA11 → Ibovespa, Fundos de Ações → Média FIA*, Crédito/NTN-B/CDI → CDI.
+BOVA11 → Ibovespa, Fundos de Ações → Média FIA*, NTN-B → IMA-B 5+ (BCB/IMAB11), Crédito/CDI → CDI.
 </div>""", unsafe_allow_html=True)
 
 st.markdown(f"""<div class="tag-footer">
