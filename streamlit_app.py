@@ -686,7 +686,7 @@ st.sidebar.markdown(f'<div style="border-top:1px solid rgba(255,136,83,0.3);marg
 st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Benchmarks</p>', unsafe_allow_html=True)
 
 _bench_options = list(ALL_BENCHMARKS.keys())
-_bench_defaults = ["Ibovespa", "CDI", "67% Ibov + 33% CDI", "Média FIA*"]
+_bench_defaults = ["Ibovespa", "CDI", "67% Ibov + 33% CDI", "Média FIA*", "Carteira Modelo"]
 selected_benchmarks = st.sidebar.multiselect(
     "Benchmarks",
     options=_bench_options,
