@@ -31,11 +31,12 @@ TAG_CINZA = "#6A6864"
 TAG_BRANCO = "#FFFFFF"
 CHART_COLORS = {
     "carteira":    "#002A6E",   # azul marinho
+    "consolidada": "#0891B2",   # ciano/azul-piscina
     "ibovespa":    "#FF6600",   # laranja vivo
     "cdi":         "#7C3AED",   # violeta
     "bench67":     "#DC2626",   # vermelho
     "fia":         "#16A34A",   # verde
-    "bench67fia":  "#0891B2",   # ciano/azul-piscina
+    "bench67fia":  "#E8590C",   # laranja escuro
 }
 
 _logo_path = os.path.join(_DIR, "tag_logo.png")
@@ -509,7 +510,12 @@ _CSV = os.path.join(_DIR, "portfolio_data.csv")
 _XLS = r"C:\Users\romulo.corcino_tagin\Downloads\ReportHistoricoCota (3).xls"
 DATA_PATH = _CSV if os.path.exists(_CSV) else _XLS
 
+_CONSOL_CSV = os.path.join(_DIR, "consolidada_data.csv")
+consol_available = os.path.exists(_CONSOL_CSV)
+
 port_full = load_portfolio(DATA_PATH)
+consol_full = load_portfolio(_CONSOL_CSV) if consol_available else None
+
 full_start = port_full["Date"].min()
 full_end = port_full["Date"].max()
 
@@ -528,7 +534,38 @@ if os.path.exists(_logo_path):
     st.sidebar.image(_logo_path, use_container_width=False, width=200)
 
 st.sidebar.markdown(f'<div style="border-top:1px solid rgba(255,136,83,0.3);margin:0.5rem 0 1rem 0;"></div>', unsafe_allow_html=True)
+
+# ── Portfolio selector ──
+if consol_available:
+    st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Carteira</p>', unsafe_allow_html=True)
+    portfolio_view = st.sidebar.selectbox(
+        "Carteira",
+        ["Individual (834)", "Consolidada (840)", "Comparativo"],
+        index=0,
+        label_visibility="collapsed",
+    )
+    show_consol = portfolio_view in ("Consolidada (840)", "Comparativo")
+    show_individual = portfolio_view in ("Individual (834)", "Comparativo")
+    compare_mode = portfolio_view == "Comparativo"
+else:
+    portfolio_view = "Individual (834)"
+    show_consol = False
+    show_individual = True
+    compare_mode = False
+
 st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Período de Análise</p>', unsafe_allow_html=True)
+
+# Determine effective data range based on portfolio selection
+if show_consol and not show_individual:
+    _eff_start = consol_full["Date"].min()
+    _eff_end = consol_full["Date"].max()
+elif compare_mode:
+    # In compare mode, use intersection of dates (consolidada starts later)
+    _eff_start = consol_full["Date"].min()
+    _eff_end = min(port_full["Date"].max(), consol_full["Date"].max())
+else:
+    _eff_start = full_start
+    _eff_end = full_end
 
 preset = st.sidebar.selectbox(
     "Período",
@@ -537,7 +574,7 @@ preset = st.sidebar.selectbox(
     label_visibility="collapsed",
 )
 
-today_ref = full_end
+today_ref = _eff_end
 if preset == "YTD":
     sel_start, sel_end = pd.Timestamp(today_ref.year, 1, 1), today_ref
 elif preset == "Último Ano":
@@ -549,26 +586,45 @@ elif preset == "Últimos 3 Anos":
 elif preset == "Últimos 5 Anos":
     sel_start, sel_end = today_ref - pd.DateOffset(years=5), today_ref
 elif preset == "Personalizado":
-    sel_start = pd.Timestamp(st.sidebar.date_input("Data Início", value=full_start.date(), min_value=full_start.date(), max_value=full_end.date()))
-    sel_end = pd.Timestamp(st.sidebar.date_input("Data Fim", value=full_end.date(), min_value=full_start.date(), max_value=full_end.date()))
+    sel_start = pd.Timestamp(st.sidebar.date_input("Data Início", value=_eff_start.date(), min_value=_eff_start.date(), max_value=_eff_end.date()))
+    sel_end = pd.Timestamp(st.sidebar.date_input("Data Fim", value=_eff_end.date(), min_value=_eff_start.date(), max_value=_eff_end.date()))
 else:
-    sel_start, sel_end = full_start, full_end
+    sel_start, sel_end = _eff_start, _eff_end
 
-sel_start = max(sel_start, full_start)
-sel_end = min(sel_end, full_end)
+sel_start = max(sel_start, _eff_start)
+sel_end = min(sel_end, _eff_end)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"""
 <div style="text-align:center;">
     <p style="font-size:0.65rem;color:rgba(245,244,240,0.5) !important;margin:0;">Dados atualizados até</p>
-    <p style="font-size:0.85rem;color:{TAG_LARANJA} !important;font-weight:600;margin:0.2rem 0 0 0;">{full_end.strftime('%d/%m/%Y')}</p>
+    <p style="font-size:0.85rem;color:{TAG_LARANJA} !important;font-weight:600;margin:0.2rem 0 0 0;">{_eff_end.strftime('%d/%m/%Y')}</p>
 </div>
 """, unsafe_allow_html=True)
 
-port_filtered = port_full[(port_full["Date"] >= sel_start) & (port_full["Date"] <= sel_end)].reset_index(drop=True)
+# ── Filter portfolios ──
+if show_consol and not show_individual:
+    # Consolidada only
+    active_port = consol_full
+    port_label = "Consolidada"
+elif compare_mode:
+    active_port = port_full
+    port_label = "Individual"
+else:
+    active_port = port_full
+    port_label = "Carteira"
+
+port_filtered = active_port[(active_port["Date"] >= sel_start) & (active_port["Date"] <= sel_end)].reset_index(drop=True)
 if len(port_filtered) < 2:
     st.error("Período selecionado não tem dados suficientes.")
     st.stop()
+
+if compare_mode:
+    consol_filtered = consol_full[(consol_full["Date"] >= sel_start) & (consol_full["Date"] <= sel_end)].reset_index(drop=True)
+    if len(consol_filtered) < 2:
+        st.error("Período selecionado não tem dados suficientes para a carteira consolidada.")
+        st.stop()
+    consol_merged = build_merged(consol_filtered, ibov_raw, cdi_raw, fia_raw)
 
 merged = build_merged(port_filtered, ibov_raw, cdi_raw, fia_raw)
 
@@ -582,9 +638,10 @@ total_days = (end_date - start_date).days
 # HEADER
 # ══════════════════════════════════════════════════════════════════════════════
 
+_view_label = {"Individual (834)": "Carteira Individual (834)", "Consolidada (840)": "Carteira Consolidada (840)", "Comparativo": "Comparativo Individual vs Consolidada"}.get(portfolio_view, "Carteira")
 st.markdown(f"""<div class="tag-header">
 <h1>Estudo de Desempenho</h1>
-<div class="subtitle">{start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')} &nbsp;&bull;&nbsp; {total_days:,} dias corridos &nbsp;&bull;&nbsp; {n_days:,} dias uteis &nbsp;&bull;&nbsp; ~{total_days / 365:.1f} anos</div>
+<div class="subtitle">{_view_label} &nbsp;&bull;&nbsp; {start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')} &nbsp;&bull;&nbsp; {total_days:,} dias corridos &nbsp;&bull;&nbsp; {n_days:,} dias uteis &nbsp;&bull;&nbsp; ~{total_days / 365:.1f} anos</div>
 <div class="divider"></div>
 </div>""", unsafe_allow_html=True)
 
@@ -597,6 +654,7 @@ if not ibov_ok:
 # ══════════════════════════════════════════════════════════════════════════════
 
 port_total = merged["Portfolio_cum"].iloc[-1]
+consol_total = consol_merged["Portfolio_cum"].iloc[-1] if compare_mode else np.nan
 ibov_total = merged["Ibov_cum"].iloc[-1] if ibov_ok else np.nan
 cdi_total = merged["CDI_cum"].iloc[-1]
 bench67_total = merged["Bench67_cum"].iloc[-1] if ibov_ok else np.nan
@@ -605,6 +663,7 @@ fia_days = int((merged.loc[merged["FIA_cum"].notna(), "Date"].iloc[-1] - merged.
 bench67fia_total = merged["Bench67FIA_cum"].iloc[-1] if fia_ok else np.nan
 
 port_ann = annualized_return(port_total, total_days)
+consol_ann = annualized_return(consol_total, total_days) if compare_mode else np.nan
 ibov_ann = annualized_return(ibov_total, total_days) if ibov_ok else np.nan
 cdi_ann = annualized_return(cdi_total, total_days)
 bench67_ann = annualized_return(bench67_total, total_days) if ibov_ok else np.nan
@@ -612,6 +671,7 @@ fia_ann = annualized_return(fia_total, fia_days) if not np.isnan(fia_total) and 
 bench67fia_ann = annualized_return(bench67fia_total, total_days) if fia_ok else np.nan
 
 port_vol = annualized_vol(merged["Port_ret"].dropna())
+consol_vol = annualized_vol(consol_merged["Port_ret"].dropna()) if compare_mode else np.nan
 ibov_vol = annualized_vol(merged["Ibov_ret"].dropna()) if ibov_ok else np.nan
 bench67_vol = annualized_vol(merged["Bench67_ret"].dropna()) if ibov_ok else np.nan
 fia_vol = annualized_vol(merged["FIA_ret"].dropna()) if fia_ok else np.nan
@@ -619,18 +679,21 @@ bench67fia_vol = annualized_vol(merged["Bench67FIA_ret"].dropna()) if fia_ok els
 
 cdi_daily_avg = merged["CDI_ret"].dropna().mean()
 port_std = merged["Port_ret"].dropna().std()
+consol_std = consol_merged["Port_ret"].dropna().std() if compare_mode else 0
 ibov_std = merged["Ibov_ret"].dropna().std() if ibov_ok else 0
 bench67_std = merged["Bench67_ret"].dropna().std() if ibov_ok else 0
 fia_std = merged["FIA_ret"].dropna().std() if fia_ok else 0
 bench67fia_std = merged["Bench67FIA_ret"].dropna().std() if fia_ok else 0
 
 port_sharpe = (merged["Port_ret"].dropna().mean() - cdi_daily_avg) / port_std * np.sqrt(252) if port_std > 0 else 0
+consol_sharpe = (consol_merged["Port_ret"].dropna().mean() - cdi_daily_avg) / consol_std * np.sqrt(252) if compare_mode and consol_std > 0 else np.nan
 ibov_sharpe = (merged["Ibov_ret"].dropna().mean() - cdi_daily_avg) / ibov_std * np.sqrt(252) if ibov_ok and ibov_std > 0 else np.nan
 bench67_sharpe = (merged["Bench67_ret"].dropna().mean() - cdi_daily_avg) / bench67_std * np.sqrt(252) if ibov_ok and bench67_std > 0 else np.nan
 fia_sharpe = (merged["FIA_ret"].dropna().mean() - cdi_daily_avg) / fia_std * np.sqrt(252) if fia_ok and fia_std > 0 else np.nan
 bench67fia_sharpe = (merged["Bench67FIA_ret"].dropna().mean() - cdi_daily_avg) / bench67fia_std * np.sqrt(252) if fia_ok and bench67fia_std > 0 else np.nan
 
 port_dd = calc_drawdown(1 + merged["Portfolio_cum"])
+consol_dd = calc_drawdown(1 + consol_merged["Portfolio_cum"]) if compare_mode else pd.Series(np.nan, index=merged.index)
 ibov_dd = calc_drawdown(1 + merged["Ibov_cum"]) if ibov_ok else pd.Series(0, index=merged.index)
 bench67_dd = calc_drawdown(1 + merged["Bench67_cum"]) if ibov_ok else pd.Series(0, index=merged.index)
 fia_dd = calc_drawdown(1 + merged["FIA_cum"].ffill()) if fia_ok and merged["FIA_cum"].notna().any() else pd.Series(np.nan, index=merged.index)
@@ -642,11 +705,13 @@ excess_vs_ibov = (port_total - ibov_total) * 100 if ibov_ok and not np.isnan(ibo
 excess_vs_cdi = (port_total - cdi_total) * 100
 
 insights = []
-insights.append(f"<b>Retorno acumulado da carteira: {fmt_pct(port_total)}</b> ({fmt_pct(port_ann)} a.a.) em ~{total_days / 365:.0f} anos")
+insights.append(f"<b>Retorno acumulado {port_label}: {fmt_pct(port_total)}</b> ({fmt_pct(port_ann)} a.a.) em ~{total_days / 365:.0f} anos")
+if compare_mode:
+    insights.append(f"<b>Consolidada: {fmt_pct(consol_total)}</b> ({fmt_pct(consol_ann)} a.a.)")
 if ibov_ok and excess_vs_ibov > 0:
-    insights.append(f"Carteira superou o Ibovespa em <b>{excess_vs_ibov:+.1f} p.p.</b> acumulados")
+    insights.append(f"{port_label} superou o Ibovespa em <b>{excess_vs_ibov:+.1f} p.p.</b> acumulados")
 if excess_vs_cdi > 0:
-    insights.append(f"Carteira entregou <b>{total_pct_cdi_quick:.0f}% do CDI</b> no período")
+    insights.append(f"{port_label} entregou <b>{total_pct_cdi_quick:.0f}% do CDI</b> no período")
 insight_box(" &nbsp;|&nbsp; ".join(insights))
 
 # ── Tabela Comparativa ──
@@ -655,15 +720,18 @@ st.caption("Melhor resultado de cada métrica destacado em verde.")
 
 _fia_dd_min = fia_dd.dropna().min() if fia_ok and fia_dd.notna().any() else np.nan
 _b67fia_dd_min = bench67fia_dd.dropna().min() if fia_ok and bench67fia_dd.notna().any() else np.nan
+_consol_dd_min = consol_dd.dropna().min() if compare_mode and consol_dd.notna().any() else np.nan
 summary_data = {
     "": ["Retorno Acumulado", "Retorno Anual", "Volatilidade", "Max Drawdown", "Sharpe"],
-    "Carteira": [fmt_pct(port_total), fmt_pct(port_ann), fmt_pct(port_vol), fmt_pct(port_dd.min()), fmt_f(port_sharpe)],
-    "Ibovespa": [fmt_pct(ibov_total), fmt_pct(ibov_ann), fmt_pct(ibov_vol), fmt_pct(ibov_dd.min()) if ibov_ok else "\u2014", fmt_f(ibov_sharpe)],
-    "CDI": [fmt_pct(cdi_total), fmt_pct(cdi_ann), "~0%", "~0%", "\u2014"],
-    "67% Ibov + 33% CDI": [fmt_pct(bench67_total), fmt_pct(bench67_ann), fmt_pct(bench67_vol), fmt_pct(bench67_dd.min()) if ibov_ok else "\u2014", fmt_f(bench67_sharpe)],
-    "Média FIA*": [fmt_pct(fia_total), fmt_pct(fia_ann), fmt_pct(fia_vol), fmt_pct(_fia_dd_min), fmt_f(fia_sharpe)],
-    "67% FIA + 33% CDI*": [fmt_pct(bench67fia_total), fmt_pct(bench67fia_ann), fmt_pct(bench67fia_vol), fmt_pct(_b67fia_dd_min), fmt_f(bench67fia_sharpe)],
+    port_label: [fmt_pct(port_total), fmt_pct(port_ann), fmt_pct(port_vol), fmt_pct(port_dd.min()), fmt_f(port_sharpe)],
 }
+if compare_mode:
+    summary_data["Consolidada"] = [fmt_pct(consol_total), fmt_pct(consol_ann), fmt_pct(consol_vol), fmt_pct(_consol_dd_min), fmt_f(consol_sharpe)]
+summary_data["Ibovespa"] = [fmt_pct(ibov_total), fmt_pct(ibov_ann), fmt_pct(ibov_vol), fmt_pct(ibov_dd.min()) if ibov_ok else "\u2014", fmt_f(ibov_sharpe)]
+summary_data["CDI"] = [fmt_pct(cdi_total), fmt_pct(cdi_ann), "~0%", "~0%", "\u2014"]
+summary_data["67% Ibov + 33% CDI"] = [fmt_pct(bench67_total), fmt_pct(bench67_ann), fmt_pct(bench67_vol), fmt_pct(bench67_dd.min()) if ibov_ok else "\u2014", fmt_f(bench67_sharpe)]
+summary_data["Média FIA*"] = [fmt_pct(fia_total), fmt_pct(fia_ann), fmt_pct(fia_vol), fmt_pct(_fia_dd_min), fmt_f(fia_sharpe)]
+summary_data["67% FIA + 33% CDI*"] = [fmt_pct(bench67fia_total), fmt_pct(bench67fia_ann), fmt_pct(bench67fia_vol), fmt_pct(_b67fia_dd_min), fmt_f(bench67fia_sharpe)]
 summary_df = pd.DataFrame(summary_data)
 st.markdown(style_table(summary_df, highlight_best=True), unsafe_allow_html=True)
 if fia_ok:
@@ -678,7 +746,9 @@ section_title("Retorno Acumulado (%)")
 st.caption("Evolução do retorno acumulado da carteira comparado aos benchmarks, com base na cota de rendimento (descontando aportes e resgates).")
 
 fig1 = go.Figure()
-fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Portfolio_cum"] * 100, name="Carteira", line=dict(width=2.5, color=CHART_COLORS["carteira"])))
+fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Portfolio_cum"] * 100, name=port_label, line=dict(width=2.5, color=CHART_COLORS["carteira"])))
+if compare_mode:
+    fig1.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_merged["Portfolio_cum"] * 100, name="Consolidada", line=dict(width=2.5, color=CHART_COLORS["consolidada"])))
 if ibov_ok:
     fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Ibov_cum"] * 100, name="Ibovespa", line=dict(width=1.8, color=CHART_COLORS["ibovespa"])))
 fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["CDI_cum"] * 100, name="CDI", line=dict(width=1.8, color=CHART_COLORS["cdi"], dash="dot")))
@@ -700,7 +770,9 @@ section_title("Drawdown")
 st.caption("Queda percentual em relação ao pico histórico. Quanto menor (mais negativo), maior foi a perda temporária no período.")
 
 fig2 = go.Figure()
-fig2.add_trace(go.Scatter(x=merged["Date"], y=port_dd * 100, name="Carteira", fill="tozeroy", line=dict(color=CHART_COLORS["carteira"]), fillcolor="rgba(0,42,110,0.10)"))
+fig2.add_trace(go.Scatter(x=merged["Date"], y=port_dd * 100, name=port_label, fill="tozeroy", line=dict(color=CHART_COLORS["carteira"]), fillcolor="rgba(0,42,110,0.10)"))
+if compare_mode:
+    fig2.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_dd * 100, name="Consolidada", line=dict(color=CHART_COLORS["consolidada"], width=2)))
 if ibov_ok:
     fig2.add_trace(go.Scatter(x=merged["Date"], y=ibov_dd * 100, name="Ibovespa", line=dict(color=CHART_COLORS["ibovespa"], width=1)))
     fig2.add_trace(go.Scatter(x=merged["Date"], y=bench67_dd * 100, name="67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1, dash="dash")))
@@ -746,8 +818,20 @@ for prefix in ["Port", "Ibov", "CDI", "Bench67", "B67FIA"]:
 # FIA yearly returns — only for years where we have data
 yearly["FIA_ret"] = merged.groupby("Year")["FIA_cum"].apply(_fia_year_ret).values
 
+# Consolidada yearly returns (if compare mode)
+if compare_mode:
+    consol_merged["Year"] = consol_merged["Date"].dt.year
+    consol_yearly = consol_merged.groupby("Year").agg(
+        Consol_start=("Portfolio_cum", lambda x: 1 + x.iloc[0]),
+        Consol_end=("Portfolio_cum", lambda x: 1 + x.iloc[-1]),
+    ).reset_index()
+    consol_yearly["Consol_ret"] = consol_yearly["Consol_end"] / consol_yearly["Consol_start"] - 1
+    yearly = yearly.merge(consol_yearly[["Year", "Consol_ret"]], on="Year", how="left")
+
 fig3 = go.Figure()
-fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["Port_ret"] * 100, name="Carteira", marker_color=CHART_COLORS["carteira"]))
+fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["Port_ret"] * 100, name=port_label, marker_color=CHART_COLORS["carteira"]))
+if compare_mode:
+    fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["Consol_ret"] * 100, name="Consolidada", marker_color=CHART_COLORS["consolidada"]))
 if ibov_ok:
     fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["Ibov_ret"] * 100, name="Ibovespa", marker_color=CHART_COLORS["ibovespa"]))
 fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["CDI_ret"] * 100, name="CDI", marker_color=CHART_COLORS["cdi"]))
@@ -761,13 +845,19 @@ fig3.update_layout(barmode="group")
 st.plotly_chart(fig3, use_container_width=True)
 
 cols_display = ["Year", "Port_ret", "CDI_ret"]
-col_names = ["Ano", "Carteira", "CDI"]
-if ibov_ok and fia_ok:
+col_names = ["Ano", port_label, "CDI"]
+if compare_mode and ibov_ok and fia_ok:
+    cols_display = ["Year", "Port_ret", "Consol_ret", "Ibov_ret", "CDI_ret", "Bench67_ret", "FIA_ret", "B67FIA_ret"]
+    col_names = ["Ano", port_label, "Consolidada", "Ibovespa", "CDI", "67% Ibov + 33% CDI", "Média FIA*", "67% FIA + 33% CDI*"]
+elif compare_mode and ibov_ok:
+    cols_display = ["Year", "Port_ret", "Consol_ret", "Ibov_ret", "CDI_ret", "Bench67_ret"]
+    col_names = ["Ano", port_label, "Consolidada", "Ibovespa", "CDI", "67% Ibov + 33% CDI"]
+elif ibov_ok and fia_ok:
     cols_display = ["Year", "Port_ret", "Ibov_ret", "CDI_ret", "Bench67_ret", "FIA_ret", "B67FIA_ret"]
-    col_names = ["Ano", "Carteira", "Ibovespa", "CDI", "67% Ibov + 33% CDI", "Média FIA*", "67% FIA + 33% CDI*"]
+    col_names = ["Ano", port_label, "Ibovespa", "CDI", "67% Ibov + 33% CDI", "Média FIA*", "67% FIA + 33% CDI*"]
 elif ibov_ok:
     cols_display = ["Year", "Port_ret", "Ibov_ret", "CDI_ret", "Bench67_ret"]
-    col_names = ["Ano", "Carteira", "Ibovespa", "CDI", "67% Ibov + 33% CDI"]
+    col_names = ["Ano", port_label, "Ibovespa", "CDI", "67% Ibov + 33% CDI"]
 yearly_display = yearly[cols_display].copy()
 yearly_display.columns = col_names
 for c in col_names[1:]:
@@ -795,11 +885,16 @@ for roll_label, roll_window in rolling_windows.items():
         avg_cdi = cdi_roll.dropna().mean()
 
         fig_roll = go.Figure()
-        fig_roll.add_trace(go.Scatter(x=merged["Date"], y=port_roll * 100, name=f"Carteira (media: {avg_port:.1%})", line=dict(color=CHART_COLORS["carteira"], width=2)))
+        fig_roll.add_trace(go.Scatter(x=merged["Date"], y=port_roll * 100, name=f"{port_label} (media: {avg_port:.1%})", line=dict(color=CHART_COLORS["carteira"], width=2)))
         # Linha media carteira
         fig_roll.add_hline(y=avg_port * 100, line_dash="dot", line_color=CHART_COLORS["carteira"], line_width=1,
-                           annotation_text=f"Media Carteira: {avg_port:.1%}", annotation_font_color=CHART_COLORS["carteira"],
+                           annotation_text=f"Media {port_label}: {avg_port:.1%}", annotation_font_color=CHART_COLORS["carteira"],
                            annotation_position="top left", annotation_font_size=10)
+
+        if compare_mode and len(consol_merged) > roll_window:
+            consol_roll = rolling_return(1 + consol_merged["Portfolio_cum"], roll_window)
+            avg_consol = consol_roll.dropna().mean()
+            fig_roll.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_roll * 100, name=f"Consolidada (media: {avg_consol:.1%})", line=dict(color=CHART_COLORS["consolidada"], width=2)))
 
         if ibov_ok:
             ibov_roll = rolling_return(1 + merged["Ibov_cum"], roll_window)
@@ -826,7 +921,7 @@ for roll_label, roll_window in rolling_windows.items():
         st.plotly_chart(fig_roll, use_container_width=True)
 
         # Tabela resumo dos retornos medios
-        avg_data = {"": [f"Retorno médio {roll_label}"], "Carteira": [f"{avg_port:.2%}"], "CDI": [f"{avg_cdi_val:.2%}"]}
+        avg_data = {"": [f"Retorno médio {roll_label}"], port_label: [f"{avg_port:.2%}"], "CDI": [f"{avg_cdi_val:.2%}"]}
         if ibov_ok:
             avg_data["Ibovespa"] = [f"{avg_ibov:.2%}"]
             avg_data["67% Ibov + 33% CDI"] = [f"{avg_bench:.2%}"]
@@ -845,15 +940,22 @@ section_title("Excesso de Retorno vs Benchmarks")
 st.caption("Diferença acumulada entre o retorno da carteira e cada benchmark. Valores positivos indicam que a carteira superou o benchmark.")
 
 fig5 = go.Figure()
+if compare_mode:
+    # In compare mode, show individual vs consolidada excess (align by date)
+    _exc = merged[["Date", "Portfolio_cum"]].merge(
+        consol_merged[["Date", "Portfolio_cum"]].rename(columns={"Portfolio_cum": "Consol_cum"}),
+        on="Date", how="inner",
+    )
+    fig5.add_trace(go.Scatter(x=_exc["Date"], y=(_exc["Portfolio_cum"] - _exc["Consol_cum"]) * 100, name=f"{port_label} vs Consolidada", line=dict(color=CHART_COLORS["consolidada"], width=2.5)))
 if ibov_ok:
-    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Ibov_cum"]) * 100, name="vs Ibovespa", line=dict(color=CHART_COLORS["ibovespa"], width=1.8)))
-fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["CDI_cum"]) * 100, name="vs CDI", line=dict(color=CHART_COLORS["cdi"], width=1.8)))
+    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Ibov_cum"]) * 100, name=f"{port_label} vs Ibovespa", line=dict(color=CHART_COLORS["ibovespa"], width=1.8)))
+fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["CDI_cum"]) * 100, name=f"{port_label} vs CDI", line=dict(color=CHART_COLORS["cdi"], width=1.8)))
 if ibov_ok:
-    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench67_cum"]) * 100, name="vs 67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1.8)))
+    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench67_cum"]) * 100, name=f"{port_label} vs 67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1.8)))
 if fia_ok and merged["FIA_cum"].notna().any():
-    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["FIA_cum"]) * 100, name="vs Média FIA*", line=dict(color=CHART_COLORS["fia"], width=1.8, dash="longdash")))
+    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["FIA_cum"]) * 100, name=f"{port_label} vs Média FIA*", line=dict(color=CHART_COLORS["fia"], width=1.8, dash="longdash")))
 if fia_ok:
-    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench67FIA_cum"]) * 100, name="vs 67% FIA + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1.8, dash="dashdot")))
+    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench67FIA_cum"]) * 100, name=f"{port_label} vs 67% FIA + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1.8, dash="dashdot")))
 fig5.add_hline(y=0, line_dash="dash", line_color=TAG_CINZA)
 tag_chart_layout(fig5, height=400, yaxis_title="Excesso (p.p.)", ticksuffix=" p.p.")
 st.plotly_chart(fig5, use_container_width=True)
@@ -867,7 +969,9 @@ section_title("Evolução do Patrimônio (R$)")
 st.caption("Patrimônio total ao longo do tempo, incluindo efeito de aportes, resgates e valorização. Aportes e resgates significativos podem causar saltos no gráfico.")
 
 fig6 = go.Figure()
-fig6.add_trace(go.Scatter(x=merged["Date"], y=merged["Patrimonio"], name="Patrimonio", fill="tozeroy", line=dict(color=TAG_AZUL_ESCURO, width=2), fillcolor="rgba(0,42,110,0.08)"))
+fig6.add_trace(go.Scatter(x=merged["Date"], y=merged["Patrimonio"], name=f"Patrimonio {port_label}", fill="tozeroy", line=dict(color=TAG_AZUL_ESCURO, width=2), fillcolor="rgba(0,42,110,0.08)"))
+if compare_mode:
+    fig6.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_merged["Patrimonio"], name="Patrimonio Consolidada", line=dict(color=CHART_COLORS["consolidada"], width=2)))
 tag_chart_layout(fig6, height=350, yaxis_title="R$", ticksuffix="")
 fig6.update_layout(yaxis_tickformat=",.0f", yaxis_tickprefix="R$ ")
 st.plotly_chart(fig6, use_container_width=True)
@@ -958,7 +1062,10 @@ if n_days >= 252:
     merged["Port_vol12"] = merged["Port_ret"].rolling(252).std() * np.sqrt(252)
 
     fig7 = go.Figure()
-    fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["Port_vol12"] * 100, name="Carteira", line=dict(color=CHART_COLORS["carteira"], width=2)))
+    fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["Port_vol12"] * 100, name=port_label, line=dict(color=CHART_COLORS["carteira"], width=2)))
+    if compare_mode and len(consol_merged) > 252:
+        consol_merged["Port_vol12"] = consol_merged["Port_ret"].rolling(252).std() * np.sqrt(252)
+        fig7.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_merged["Port_vol12"] * 100, name="Consolidada", line=dict(color=CHART_COLORS["consolidada"], width=2)))
     if ibov_ok:
         merged["Ibov_vol12"] = merged["Ibov_ret"].rolling(252).std() * np.sqrt(252)
         merged["Bench67_vol12"] = merged["Bench67_ret"].rolling(252).std() * np.sqrt(252)
@@ -977,29 +1084,43 @@ if n_days >= 252:
 # % do CDI
 # ══════════════════════════════════════════════════════════════════════════════
 
-section_title("Carteira como % do CDI")
+section_title(f"{port_label} como % do CDI")
 st.caption("Percentual do CDI entregue pela carteira em cada ano. Acima de 100% significa que a carteira superou o CDI no período.")
 
 yearly_pct_cdi = yearly[["Year"]].copy()
-yearly_pct_cdi["% do CDI"] = np.where(
+yearly_pct_cdi[f"% CDI {port_label}"] = np.where(
     yearly["CDI_ret"] > 0,
     (yearly["Port_ret"] / yearly["CDI_ret"] * 100).round(1),
     np.nan,
 )
-yearly_pct_cdi.columns = ["Ano", "% do CDI"]
+if compare_mode and "Consol_ret" in yearly.columns:
+    yearly_pct_cdi["% CDI Consolidada"] = np.where(
+        yearly["CDI_ret"] > 0,
+        (yearly["Consol_ret"] / yearly["CDI_ret"] * 100).round(1),
+        np.nan,
+    )
 total_pct_cdi = port_total / cdi_total * 100 if cdi_total > 0 else 0
 
 c1, c2 = st.columns([1, 2])
 with c1:
-    st.metric("% do CDI (acumulado)", f"{total_pct_cdi:.1f}%")
+    st.metric(f"% do CDI {port_label}", f"{total_pct_cdi:.1f}%")
+    if compare_mode:
+        consol_pct_cdi = consol_total / cdi_total * 100 if cdi_total > 0 else 0
+        st.metric("% do CDI Consolidada", f"{consol_pct_cdi:.1f}%")
     pct_display = yearly_pct_cdi.copy()
-    pct_display["Ano"] = pct_display["Ano"].astype(str)
-    pct_display["% do CDI"] = pct_display["% do CDI"].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "\u2014")
+    pct_display["Year"] = pct_display["Year"].astype(str)
+    pct_display.rename(columns={"Year": "Ano"}, inplace=True)
+    for c in pct_display.columns[1:]:
+        pct_display[c] = pct_display[c].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "\u2014")
     st.markdown(style_table(pct_display), unsafe_allow_html=True)
 with c2:
     fig8 = go.Figure()
-    colors = [TAG_AZUL_ESCURO if v >= 100 else TAG_ROSA for v in yearly_pct_cdi["% do CDI"].fillna(0)]
-    fig8.add_trace(go.Bar(x=yearly_pct_cdi["Ano"], y=yearly_pct_cdi["% do CDI"], marker_color=colors))
+    pct_vals = yearly_pct_cdi[f"% CDI {port_label}"].fillna(0)
+    colors = [TAG_AZUL_ESCURO if v >= 100 else TAG_ROSA for v in pct_vals]
+    fig8.add_trace(go.Bar(x=yearly_pct_cdi["Year"], y=yearly_pct_cdi[f"% CDI {port_label}"], name=port_label, marker_color=colors))
+    if compare_mode and "% CDI Consolidada" in yearly_pct_cdi.columns:
+        fig8.add_trace(go.Bar(x=yearly_pct_cdi["Year"], y=yearly_pct_cdi["% CDI Consolidada"], name="Consolidada", marker_color=CHART_COLORS["consolidada"]))
+        fig8.update_layout(barmode="group")
     fig8.add_hline(y=100, line_dash="dash", line_color=TAG_VERMELHO, annotation_text="100% CDI", annotation_font_color=TAG_VERMELHO)
     tag_chart_layout(fig8, height=400, yaxis_title="% do CDI", ticksuffix="%")
     st.plotly_chart(fig8, use_container_width=True)
