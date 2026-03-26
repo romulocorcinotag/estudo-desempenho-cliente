@@ -39,6 +39,7 @@ CHART_COLORS = {
     "fia":         "#16A34A",   # verde
     "bench67fia":  "#E8590C",   # laranja escuro
     "bench55fia":  "#059669",   # verde escuro
+    "hybrid":      "#6D28D9",   # roxo escuro
 }
 
 # All available benchmark keys (label -> internal key)
@@ -540,6 +541,26 @@ consol_available = os.path.exists(_CONSOL_CSV)
 port_full = load_portfolio(DATA_PATH)
 consol_full = load_portfolio(_CONSOL_CSV) if consol_available else None
 
+# ── Carteira + Consolidada (hybrid) ──────────────────────────────────────────
+# Uses Carteira data from its start until the day before Consolidada begins,
+# then switches to Consolidada data from that point forward.
+# CotaRendimento is re-chained so cumulative return is continuous.
+hybrid_full = None
+if consol_available and consol_full is not None and len(consol_full) > 0:
+    _consol_start = consol_full["Date"].min()
+    # Part 1: Carteira before Consolidada
+    _part1 = port_full[port_full["Date"] < _consol_start].copy()
+    # Part 2: Consolidada from its start
+    _part2 = consol_full.copy()
+    if len(_part1) > 0 and len(_part2) > 0:
+        # Re-chain: last cota of part1 * (consol cota / consol first cota)
+        _last_cota1 = _part1["CotaRendimento"].iloc[-1]
+        _first_cota2 = _part2["CotaRendimento"].iloc[0]
+        _part2["CotaRendimento"] = _last_cota1 * (_part2["CotaRendimento"] / _first_cota2)
+        # For patrimonio, use part2 as-is (consolidada patrimonio)
+        hybrid_full = pd.concat([_part1, _part2], ignore_index=True)
+        hybrid_full = hybrid_full.sort_values("Date").reset_index(drop=True)
+
 full_start = port_full["Date"].min()
 full_end = port_full["Date"].max()
 
@@ -562,25 +583,31 @@ st.sidebar.markdown(f'<div style="border-top:1px solid rgba(255,136,83,0.3);marg
 # ── Portfolio selector ──
 if consol_available:
     st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Carteira</p>', unsafe_allow_html=True)
+    _view_options = ["Individual (834)", "Consolidada (840)", "Carteira + Consolidada", "Comparativo"]
     portfolio_view = st.sidebar.selectbox(
         "Carteira",
-        ["Individual (834)", "Consolidada (840)", "Comparativo"],
+        _view_options,
         index=0,
         label_visibility="collapsed",
     )
     show_consol = portfolio_view in ("Consolidada (840)", "Comparativo")
     show_individual = portfolio_view in ("Individual (834)", "Comparativo")
+    show_hybrid = portfolio_view == "Carteira + Consolidada"
     compare_mode = portfolio_view == "Comparativo"
 else:
     portfolio_view = "Individual (834)"
     show_consol = False
     show_individual = True
+    show_hybrid = False
     compare_mode = False
 
 st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Período de Análise</p>', unsafe_allow_html=True)
 
 # Determine effective data range based on portfolio selection
-if show_consol and not show_individual:
+if show_hybrid and hybrid_full is not None:
+    _eff_start = hybrid_full["Date"].min()
+    _eff_end = hybrid_full["Date"].max()
+elif show_consol and not show_individual:
     _eff_start = consol_full["Date"].min()
     _eff_end = consol_full["Date"].max()
 elif compare_mode:
@@ -650,7 +677,10 @@ st.sidebar.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Filter portfolios ──
-if show_consol and not show_individual:
+if show_hybrid and hybrid_full is not None:
+    active_port = hybrid_full
+    port_label = "Carteira + Consolidada"
+elif show_consol and not show_individual:
     # Consolidada only
     active_port = consol_full
     port_label = "Consolidada"
@@ -685,12 +715,16 @@ total_days = (end_date - start_date).days
 # HEADER
 # ══════════════════════════════════════════════════════════════════════════════
 
-_view_label = {"Individual (834)": "Carteira Individual (834)", "Consolidada (840)": "Carteira Consolidada (840)", "Comparativo": "Comparativo Individual vs Consolidada"}.get(portfolio_view, "Carteira")
+_view_label = {"Individual (834)": "Carteira Individual (834)", "Consolidada (840)": "Carteira Consolidada (840)", "Carteira + Consolidada": "Carteira + Consolidada (834 → 840)", "Comparativo": "Comparativo Individual vs Consolidada"}.get(portfolio_view, "Carteira")
 st.markdown(f"""<div class="tag-header">
 <h1>Estudo de Desempenho</h1>
 <div class="subtitle">{_view_label} &nbsp;&bull;&nbsp; {start_date.strftime('%d/%m/%Y')} a {end_date.strftime('%d/%m/%Y')} &nbsp;&bull;&nbsp; {total_days:,} dias corridos &nbsp;&bull;&nbsp; {n_days:,} dias uteis &nbsp;&bull;&nbsp; ~{total_days / 365:.1f} anos</div>
 <div class="divider"></div>
 </div>""", unsafe_allow_html=True)
+
+if show_hybrid and hybrid_full is not None:
+    _consol_start_str = consol_full["Date"].min().strftime('%d/%m/%Y')
+    st.info(f"📌 **Carteira + Consolidada**: utiliza os dados da Carteira Individual (834) até {_consol_start_str}, e a partir dessa data utiliza a Carteira Consolidada (840). O retorno acumulado é encadeado de forma contínua.")
 
 if not ibov_ok:
     st.warning("Dados do Ibovespa indisponíveis. Exibindo apenas Carteira vs CDI.")
@@ -812,8 +846,10 @@ if fia_ok:
 section_title("Retorno Acumulado (%)")
 st.caption("Evolução do retorno acumulado da carteira comparado aos benchmarks, com base na cota de rendimento (descontando aportes e resgates).")
 
+_port_color = CHART_COLORS["hybrid"] if show_hybrid else CHART_COLORS["carteira"]
+
 fig1 = go.Figure()
-fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Portfolio_cum"] * 100, name=port_label, line=dict(width=2.5, color=CHART_COLORS["carteira"])))
+fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Portfolio_cum"] * 100, name=port_label, line=dict(width=2.5, color=_port_color)))
 if compare_mode:
     fig1.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_merged["Portfolio_cum"] * 100, name="Consolidada", line=dict(width=2.5, color=CHART_COLORS["consolidada"])))
 if show_ibov:
@@ -842,7 +878,7 @@ section_title("Drawdown")
 st.caption("Queda percentual em relação ao pico histórico. Quanto menor (mais negativo), maior foi a perda temporária no período.")
 
 fig2 = go.Figure()
-fig2.add_trace(go.Scatter(x=merged["Date"], y=port_dd * 100, name=port_label, fill="tozeroy", line=dict(color=CHART_COLORS["carteira"]), fillcolor="rgba(0,42,110,0.10)"))
+fig2.add_trace(go.Scatter(x=merged["Date"], y=port_dd * 100, name=port_label, fill="tozeroy", line=dict(color=_port_color), fillcolor="rgba(0,42,110,0.10)"))
 if compare_mode:
     fig2.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_dd * 100, name="Consolidada", line=dict(color=CHART_COLORS["consolidada"], width=2)))
 if show_ibov:
@@ -911,7 +947,7 @@ if compare_mode:
 
 # Build bars and table columns dynamically based on selected benchmarks
 fig3 = go.Figure()
-fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["Port_ret"] * 100, name=port_label, marker_color=CHART_COLORS["carteira"]))
+fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["Port_ret"] * 100, name=port_label, marker_color=_port_color))
 
 # Dynamic columns for table
 _yr_cols = [("Year", "Ano"), ("Port_ret", port_label)]
@@ -973,10 +1009,10 @@ for roll_label, roll_window in rolling_windows.items():
         avg_cdi = cdi_roll.dropna().mean()
 
         fig_roll = go.Figure()
-        fig_roll.add_trace(go.Scatter(x=merged["Date"], y=port_roll * 100, name=f"{port_label} (media: {avg_port:.1%})", line=dict(color=CHART_COLORS["carteira"], width=2)))
+        fig_roll.add_trace(go.Scatter(x=merged["Date"], y=port_roll * 100, name=f"{port_label} (media: {avg_port:.1%})", line=dict(color=_port_color, width=2)))
         # Linha media carteira
-        fig_roll.add_hline(y=avg_port * 100, line_dash="dot", line_color=CHART_COLORS["carteira"], line_width=1,
-                           annotation_text=f"Media {port_label}: {avg_port:.1%}", annotation_font_color=CHART_COLORS["carteira"],
+        fig_roll.add_hline(y=avg_port * 100, line_dash="dot", line_color=_port_color, line_width=1,
+                           annotation_text=f"Media {port_label}: {avg_port:.1%}", annotation_font_color=_port_color,
                            annotation_position="top left", annotation_font_size=10)
 
         if compare_mode and len(consol_merged) > roll_window:
@@ -1138,7 +1174,7 @@ if n_days >= 252:
     merged["Port_vol12"] = merged["Port_ret"].rolling(252).std() * np.sqrt(252)
 
     fig7 = go.Figure()
-    fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["Port_vol12"] * 100, name=port_label, line=dict(color=CHART_COLORS["carteira"], width=2)))
+    fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["Port_vol12"] * 100, name=port_label, line=dict(color=_port_color, width=2)))
     if compare_mode and len(consol_merged) > 252:
         consol_merged["Port_vol12"] = consol_merged["Port_ret"].rolling(252).std() * np.sqrt(252)
         fig7.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_merged["Port_vol12"] * 100, name="Consolidada", line=dict(color=CHART_COLORS["consolidada"], width=2)))
