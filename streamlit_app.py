@@ -232,6 +232,40 @@ st.markdown(f"""
         display: block !important;
     }}
 
+    /* Carteira Modelo expander — compact inputs */
+    section[data-testid="stSidebar"] div[data-testid="stExpander"] {{
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,136,83,0.25);
+        border-radius: 10px;
+    }}
+    section[data-testid="stSidebar"] div[data-testid="stExpander"] p {{
+        font-size: 0.72rem !important;
+        font-weight: 600 !important;
+        color: {TAG_LARANJA} !important;
+    }}
+    section[data-testid="stSidebar"] div[data-testid="stExpander"] label {{
+        font-size: 0.68rem !important;
+        margin-bottom: 0 !important;
+        color: rgba(245,244,240,0.8) !important;
+    }}
+    section[data-testid="stSidebar"] div[data-testid="stExpander"] .stNumberInput {{
+        margin-bottom: 0.2rem !important;
+    }}
+    section[data-testid="stSidebar"] div[data-testid="stExpander"] input {{
+        background: rgba(255,255,255,0.15) !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255,136,83,0.3) !important;
+        border-radius: 6px !important;
+        font-size: 0.78rem !important;
+        padding: 0.25rem 0.4rem !important;
+        height: 2rem !important;
+    }}
+    section[data-testid="stSidebar"] div[data-testid="stExpander"] button[data-testid="stNumberInputStepUp"],
+    section[data-testid="stSidebar"] div[data-testid="stExpander"] button[data-testid="stNumberInputStepDown"] {{
+        height: 1rem !important;
+        width: 1.5rem !important;
+    }}
+
     /* Hide streamlit defaults */
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
@@ -709,22 +743,25 @@ show_cm = "cm" in _sel_bench
 # ── Carteira Modelo weights editor ──
 if show_cm:
     st.sidebar.markdown(f'<div style="border-top:1px solid rgba(255,136,83,0.3);margin:0.5rem 0;"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Pesos Carteira Modelo (%)</p>', unsafe_allow_html=True)
-    cm_weights = {}
-    for asset in CM_ASSETS:
-        cm_weights[asset["key"]] = st.sidebar.number_input(
-            asset["name"],
-            min_value=0.0, max_value=100.0,
-            value=asset["pct"],
-            step=0.5,
-            format="%.2f",
-            key=f"cm_{asset['key']}",
-        )
-    _cm_total = sum(cm_weights.values())
-    if abs(_cm_total - 100.0) > 0.1:
-        st.sidebar.warning(f"Soma dos pesos: {_cm_total:.2f}% (deveria ser 100%)")
-    else:
-        st.sidebar.success(f"Total: {_cm_total:.2f}%")
+    with st.sidebar.expander("📊 Pesos Carteira Modelo", expanded=False):
+        _cm_cols = st.columns(2)
+        cm_weights = {}
+        for i, asset in enumerate(CM_ASSETS):
+            with _cm_cols[i % 2]:
+                cm_weights[asset["key"]] = st.number_input(
+                    asset["name"],
+                    min_value=0.0, max_value=100.0,
+                    value=asset["pct"],
+                    step=0.5,
+                    format="%.2f",
+                    key=f"cm_{asset['key']}",
+                    label_visibility="visible",
+                )
+        _cm_total = sum(cm_weights.values())
+        if abs(_cm_total - 100.0) > 0.1:
+            st.warning(f"⚠️ Soma: {_cm_total:.2f}% (deveria ser 100%)")
+        else:
+            st.success(f"✅ Total: {_cm_total:.2f}%")
 else:
     cm_weights = {a["key"]: a["pct"] for a in CM_ASSETS}
 
