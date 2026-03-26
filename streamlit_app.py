@@ -35,8 +35,21 @@ CHART_COLORS = {
     "ibovespa":    "#FF6600",   # laranja vivo
     "cdi":         "#7C3AED",   # violeta
     "bench67":     "#DC2626",   # vermelho
+    "bench55":     "#E11D48",   # rosa escuro
     "fia":         "#16A34A",   # verde
     "bench67fia":  "#E8590C",   # laranja escuro
+    "bench55fia":  "#059669",   # verde escuro
+}
+
+# All available benchmark keys (label -> internal key)
+ALL_BENCHMARKS = {
+    "Ibovespa":             "ibovespa",
+    "CDI":                  "cdi",
+    "67% Ibov + 33% CDI":   "bench67",
+    "55% Ibov + 45% CDI":   "bench55",
+    "Média FIA*":           "fia",
+    "67% FIA + 33% CDI*":   "bench67fia",
+    "55% FIA + 45% CDI*":   "bench55fia",
 }
 
 _logo_path = os.path.join(_DIR, "tag_logo.png")
@@ -465,9 +478,14 @@ def build_merged(port_df, ibov_df, cdi_df, fia_df=None):
     cdi_norm = merged["CDI_factor"] / merged["CDI_factor"].iloc[0]
     merged["Ibov_daily_ret"] = ibov_norm.pct_change().fillna(0)
     merged["CDI_daily_ret"] = cdi_norm.pct_change().fillna(0)
+    # Composite benchmarks: Ibov + CDI
     merged["Bench67_daily_ret"] = 0.67 * merged["Ibov_daily_ret"] + 0.33 * merged["CDI_daily_ret"]
     merged["Bench67_factor"] = (1 + merged["Bench67_daily_ret"]).cumprod()
     merged["Bench67_cum"] = merged["Bench67_factor"] - 1
+
+    merged["Bench55_daily_ret"] = 0.55 * merged["Ibov_daily_ret"] + 0.45 * merged["CDI_daily_ret"]
+    merged["Bench55_factor"] = (1 + merged["Bench55_daily_ret"]).cumprod()
+    merged["Bench55_cum"] = merged["Bench55_factor"] - 1
 
     # FIA benchmark: equal-weighted average of active FIA funds
     first_fia = merged["ret_fia"].first_valid_index()
@@ -480,19 +498,25 @@ def build_merged(port_df, ibov_df, cdi_df, fia_df=None):
         merged["FIA_factor"] = np.nan
         merged["FIA_cum"] = np.nan
 
-    # 67% FIA + 33% CDI benchmark
+    # Composite benchmarks: FIA + CDI
     fia_daily = merged["ret_fia"].fillna(0)
     merged["Bench67FIA_daily_ret"] = 0.67 * fia_daily + 0.33 * merged["CDI_daily_ret"]
     merged["Bench67FIA_factor"] = (1 + merged["Bench67FIA_daily_ret"]).cumprod()
     merged["Bench67FIA_cum"] = merged["Bench67FIA_factor"] - 1
+
+    merged["Bench55FIA_daily_ret"] = 0.55 * fia_daily + 0.45 * merged["CDI_daily_ret"]
+    merged["Bench55FIA_factor"] = (1 + merged["Bench55FIA_daily_ret"]).cumprod()
+    merged["Bench55FIA_cum"] = merged["Bench55FIA_factor"] - 1
 
     port_norm = 1 + merged["Portfolio_cum"]
     merged["Port_ret"] = port_norm.pct_change()
     merged["Ibov_ret"] = ibov_norm.pct_change()
     merged["CDI_ret"] = cdi_norm.pct_change()
     merged["Bench67_ret"] = merged["Bench67_factor"].pct_change()
+    merged["Bench55_ret"] = merged["Bench55_factor"].pct_change()
     merged["FIA_ret"] = merged["ret_fia"]
     merged["Bench67FIA_ret"] = merged["Bench67FIA_factor"].pct_change()
+    merged["Bench55FIA_ret"] = merged["Bench55FIA_factor"].pct_change()
 
     return merged
 
@@ -594,6 +618,29 @@ else:
 sel_start = max(sel_start, _eff_start)
 sel_end = min(sel_end, _eff_end)
 
+st.sidebar.markdown(f'<div style="border-top:1px solid rgba(255,136,83,0.3);margin:0.8rem 0 0.5rem 0;"></div>', unsafe_allow_html=True)
+st.sidebar.markdown(f'<p style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:{TAG_LARANJA} !important;margin-bottom:0.3rem;font-weight:600;text-align:center;">Benchmarks</p>', unsafe_allow_html=True)
+
+_bench_options = list(ALL_BENCHMARKS.keys())
+_bench_defaults = ["Ibovespa", "CDI", "67% Ibov + 33% CDI", "Média FIA*"]
+selected_benchmarks = st.sidebar.multiselect(
+    "Benchmarks",
+    options=_bench_options,
+    default=_bench_defaults,
+    label_visibility="collapsed",
+)
+# Convert to set of internal keys for quick lookup
+_sel_bench = {ALL_BENCHMARKS[b] for b in selected_benchmarks}
+
+# Convenience flags
+show_ibov = "ibovespa" in _sel_bench and ibov_ok
+show_cdi = "cdi" in _sel_bench
+show_bench67 = "bench67" in _sel_bench and ibov_ok
+show_bench55 = "bench55" in _sel_bench and ibov_ok
+show_fia = "fia" in _sel_bench and fia_ok
+show_bench67fia = "bench67fia" in _sel_bench and fia_ok
+show_bench55fia = "bench55fia" in _sel_bench and fia_ok
+
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"""
 <div style="text-align:center;">
@@ -653,51 +700,61 @@ if not ibov_ok:
 # KPIs — RESUMO
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ── Compute all benchmark stats (always compute, display controlled by flags) ──
 port_total = merged["Portfolio_cum"].iloc[-1]
 consol_total = consol_merged["Portfolio_cum"].iloc[-1] if compare_mode else np.nan
 ibov_total = merged["Ibov_cum"].iloc[-1] if ibov_ok else np.nan
 cdi_total = merged["CDI_cum"].iloc[-1]
 bench67_total = merged["Bench67_cum"].iloc[-1] if ibov_ok else np.nan
+bench55_total = merged["Bench55_cum"].iloc[-1] if ibov_ok else np.nan
 fia_total = merged["FIA_cum"].dropna().iloc[-1] if fia_ok and merged["FIA_cum"].notna().any() else np.nan
 fia_days = int((merged.loc[merged["FIA_cum"].notna(), "Date"].iloc[-1] - merged.loc[merged["FIA_cum"].notna(), "Date"].iloc[0]).days) if not np.isnan(fia_total) else 0
 bench67fia_total = merged["Bench67FIA_cum"].iloc[-1] if fia_ok else np.nan
+bench55fia_total = merged["Bench55FIA_cum"].iloc[-1] if fia_ok else np.nan
 
 port_ann = annualized_return(port_total, total_days)
 consol_ann = annualized_return(consol_total, total_days) if compare_mode else np.nan
 ibov_ann = annualized_return(ibov_total, total_days) if ibov_ok else np.nan
 cdi_ann = annualized_return(cdi_total, total_days)
 bench67_ann = annualized_return(bench67_total, total_days) if ibov_ok else np.nan
+bench55_ann = annualized_return(bench55_total, total_days) if ibov_ok else np.nan
 fia_ann = annualized_return(fia_total, fia_days) if not np.isnan(fia_total) and fia_days > 0 else np.nan
 bench67fia_ann = annualized_return(bench67fia_total, total_days) if fia_ok else np.nan
+bench55fia_ann = annualized_return(bench55fia_total, total_days) if fia_ok else np.nan
 
 port_vol = annualized_vol(merged["Port_ret"].dropna())
 consol_vol = annualized_vol(consol_merged["Port_ret"].dropna()) if compare_mode else np.nan
 ibov_vol = annualized_vol(merged["Ibov_ret"].dropna()) if ibov_ok else np.nan
 bench67_vol = annualized_vol(merged["Bench67_ret"].dropna()) if ibov_ok else np.nan
+bench55_vol = annualized_vol(merged["Bench55_ret"].dropna()) if ibov_ok else np.nan
 fia_vol = annualized_vol(merged["FIA_ret"].dropna()) if fia_ok else np.nan
 bench67fia_vol = annualized_vol(merged["Bench67FIA_ret"].dropna()) if fia_ok else np.nan
+bench55fia_vol = annualized_vol(merged["Bench55FIA_ret"].dropna()) if fia_ok else np.nan
 
 cdi_daily_avg = merged["CDI_ret"].dropna().mean()
-port_std = merged["Port_ret"].dropna().std()
-consol_std = consol_merged["Port_ret"].dropna().std() if compare_mode else 0
-ibov_std = merged["Ibov_ret"].dropna().std() if ibov_ok else 0
-bench67_std = merged["Bench67_ret"].dropna().std() if ibov_ok else 0
-fia_std = merged["FIA_ret"].dropna().std() if fia_ok else 0
-bench67fia_std = merged["Bench67FIA_ret"].dropna().std() if fia_ok else 0
 
-port_sharpe = (merged["Port_ret"].dropna().mean() - cdi_daily_avg) / port_std * np.sqrt(252) if port_std > 0 else 0
-consol_sharpe = (consol_merged["Port_ret"].dropna().mean() - cdi_daily_avg) / consol_std * np.sqrt(252) if compare_mode and consol_std > 0 else np.nan
-ibov_sharpe = (merged["Ibov_ret"].dropna().mean() - cdi_daily_avg) / ibov_std * np.sqrt(252) if ibov_ok and ibov_std > 0 else np.nan
-bench67_sharpe = (merged["Bench67_ret"].dropna().mean() - cdi_daily_avg) / bench67_std * np.sqrt(252) if ibov_ok and bench67_std > 0 else np.nan
-fia_sharpe = (merged["FIA_ret"].dropna().mean() - cdi_daily_avg) / fia_std * np.sqrt(252) if fia_ok and fia_std > 0 else np.nan
-bench67fia_sharpe = (merged["Bench67FIA_ret"].dropna().mean() - cdi_daily_avg) / bench67fia_std * np.sqrt(252) if fia_ok and bench67fia_std > 0 else np.nan
+def _sharpe(ret_col):
+    s = ret_col.dropna()
+    std = s.std()
+    return (s.mean() - cdi_daily_avg) / std * np.sqrt(252) if std > 0 else np.nan
+
+port_sharpe = _sharpe(merged["Port_ret"])
+consol_sharpe = _sharpe(consol_merged["Port_ret"]) if compare_mode else np.nan
+ibov_sharpe = _sharpe(merged["Ibov_ret"]) if ibov_ok else np.nan
+bench67_sharpe = _sharpe(merged["Bench67_ret"]) if ibov_ok else np.nan
+bench55_sharpe = _sharpe(merged["Bench55_ret"]) if ibov_ok else np.nan
+fia_sharpe = _sharpe(merged["FIA_ret"]) if fia_ok else np.nan
+bench67fia_sharpe = _sharpe(merged["Bench67FIA_ret"]) if fia_ok else np.nan
+bench55fia_sharpe = _sharpe(merged["Bench55FIA_ret"]) if fia_ok else np.nan
 
 port_dd = calc_drawdown(1 + merged["Portfolio_cum"])
 consol_dd = calc_drawdown(1 + consol_merged["Portfolio_cum"]) if compare_mode else pd.Series(np.nan, index=merged.index)
 ibov_dd = calc_drawdown(1 + merged["Ibov_cum"]) if ibov_ok else pd.Series(0, index=merged.index)
 bench67_dd = calc_drawdown(1 + merged["Bench67_cum"]) if ibov_ok else pd.Series(0, index=merged.index)
+bench55_dd = calc_drawdown(1 + merged["Bench55_cum"]) if ibov_ok else pd.Series(0, index=merged.index)
 fia_dd = calc_drawdown(1 + merged["FIA_cum"].ffill()) if fia_ok and merged["FIA_cum"].notna().any() else pd.Series(np.nan, index=merged.index)
 bench67fia_dd = calc_drawdown(1 + merged["Bench67FIA_cum"]) if fia_ok else pd.Series(np.nan, index=merged.index)
+bench55fia_dd = calc_drawdown(1 + merged["Bench55FIA_cum"]) if fia_ok else pd.Series(np.nan, index=merged.index)
 
 # ── Painel de Destaques ──
 total_pct_cdi_quick = port_total / cdi_total * 100 if cdi_total > 0 else 0
@@ -718,20 +775,30 @@ insight_box(" &nbsp;|&nbsp; ".join(insights))
 section_title("Painel Comparativo")
 st.caption("Melhor resultado de cada métrica destacado em verde.")
 
-_fia_dd_min = fia_dd.dropna().min() if fia_ok and fia_dd.notna().any() else np.nan
-_b67fia_dd_min = bench67fia_dd.dropna().min() if fia_ok and bench67fia_dd.notna().any() else np.nan
-_consol_dd_min = consol_dd.dropna().min() if compare_mode and consol_dd.notna().any() else np.nan
 summary_data = {
     "": ["Retorno Acumulado", "Retorno Anual", "Volatilidade", "Max Drawdown", "Sharpe"],
     port_label: [fmt_pct(port_total), fmt_pct(port_ann), fmt_pct(port_vol), fmt_pct(port_dd.min()), fmt_f(port_sharpe)],
 }
 if compare_mode:
-    summary_data["Consolidada"] = [fmt_pct(consol_total), fmt_pct(consol_ann), fmt_pct(consol_vol), fmt_pct(_consol_dd_min), fmt_f(consol_sharpe)]
-summary_data["Ibovespa"] = [fmt_pct(ibov_total), fmt_pct(ibov_ann), fmt_pct(ibov_vol), fmt_pct(ibov_dd.min()) if ibov_ok else "\u2014", fmt_f(ibov_sharpe)]
-summary_data["CDI"] = [fmt_pct(cdi_total), fmt_pct(cdi_ann), "~0%", "~0%", "\u2014"]
-summary_data["67% Ibov + 33% CDI"] = [fmt_pct(bench67_total), fmt_pct(bench67_ann), fmt_pct(bench67_vol), fmt_pct(bench67_dd.min()) if ibov_ok else "\u2014", fmt_f(bench67_sharpe)]
-summary_data["Média FIA*"] = [fmt_pct(fia_total), fmt_pct(fia_ann), fmt_pct(fia_vol), fmt_pct(_fia_dd_min), fmt_f(fia_sharpe)]
-summary_data["67% FIA + 33% CDI*"] = [fmt_pct(bench67fia_total), fmt_pct(bench67fia_ann), fmt_pct(bench67fia_vol), fmt_pct(_b67fia_dd_min), fmt_f(bench67fia_sharpe)]
+    _cdd = consol_dd.dropna().min() if consol_dd.notna().any() else np.nan
+    summary_data["Consolidada"] = [fmt_pct(consol_total), fmt_pct(consol_ann), fmt_pct(consol_vol), fmt_pct(_cdd), fmt_f(consol_sharpe)]
+if show_ibov:
+    summary_data["Ibovespa"] = [fmt_pct(ibov_total), fmt_pct(ibov_ann), fmt_pct(ibov_vol), fmt_pct(ibov_dd.min()), fmt_f(ibov_sharpe)]
+if show_cdi:
+    summary_data["CDI"] = [fmt_pct(cdi_total), fmt_pct(cdi_ann), "~0%", "~0%", "\u2014"]
+if show_bench67:
+    summary_data["67% Ibov + 33% CDI"] = [fmt_pct(bench67_total), fmt_pct(bench67_ann), fmt_pct(bench67_vol), fmt_pct(bench67_dd.min()), fmt_f(bench67_sharpe)]
+if show_bench55:
+    summary_data["55% Ibov + 45% CDI"] = [fmt_pct(bench55_total), fmt_pct(bench55_ann), fmt_pct(bench55_vol), fmt_pct(bench55_dd.min()), fmt_f(bench55_sharpe)]
+if show_fia:
+    _fdd = fia_dd.dropna().min() if fia_dd.notna().any() else np.nan
+    summary_data["Média FIA*"] = [fmt_pct(fia_total), fmt_pct(fia_ann), fmt_pct(fia_vol), fmt_pct(_fdd), fmt_f(fia_sharpe)]
+if show_bench67fia:
+    _b67dd = bench67fia_dd.dropna().min() if bench67fia_dd.notna().any() else np.nan
+    summary_data["67% FIA + 33% CDI*"] = [fmt_pct(bench67fia_total), fmt_pct(bench67fia_ann), fmt_pct(bench67fia_vol), fmt_pct(_b67dd), fmt_f(bench67fia_sharpe)]
+if show_bench55fia:
+    _b55dd = bench55fia_dd.dropna().min() if bench55fia_dd.notna().any() else np.nan
+    summary_data["55% FIA + 45% CDI*"] = [fmt_pct(bench55fia_total), fmt_pct(bench55fia_ann), fmt_pct(bench55fia_vol), fmt_pct(_b55dd), fmt_f(bench55fia_sharpe)]
 summary_df = pd.DataFrame(summary_data)
 st.markdown(style_table(summary_df, highlight_best=True), unsafe_allow_html=True)
 if fia_ok:
@@ -749,15 +816,20 @@ fig1 = go.Figure()
 fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Portfolio_cum"] * 100, name=port_label, line=dict(width=2.5, color=CHART_COLORS["carteira"])))
 if compare_mode:
     fig1.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_merged["Portfolio_cum"] * 100, name="Consolidada", line=dict(width=2.5, color=CHART_COLORS["consolidada"])))
-if ibov_ok:
+if show_ibov:
     fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Ibov_cum"] * 100, name="Ibovespa", line=dict(width=1.8, color=CHART_COLORS["ibovespa"])))
-fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["CDI_cum"] * 100, name="CDI", line=dict(width=1.8, color=CHART_COLORS["cdi"], dash="dot")))
-if ibov_ok:
+if show_cdi:
+    fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["CDI_cum"] * 100, name="CDI", line=dict(width=1.8, color=CHART_COLORS["cdi"], dash="dot")))
+if show_bench67:
     fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench67_cum"] * 100, name="67% Ibov + 33% CDI", line=dict(width=1.8, color=CHART_COLORS["bench67"], dash="dash")))
-if fia_ok and merged["FIA_cum"].notna().any():
+if show_bench55:
+    fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench55_cum"] * 100, name="55% Ibov + 45% CDI", line=dict(width=1.8, color=CHART_COLORS["bench55"], dash="dash")))
+if show_fia and merged["FIA_cum"].notna().any():
     fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["FIA_cum"] * 100, name="Média FIA*", line=dict(width=1.8, color=CHART_COLORS["fia"], dash="longdash")))
-if fia_ok:
+if show_bench67fia:
     fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench67FIA_cum"] * 100, name="67% FIA + 33% CDI*", line=dict(width=1.8, color=CHART_COLORS["bench67fia"], dash="dashdot")))
+if show_bench55fia:
+    fig1.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench55FIA_cum"] * 100, name="55% FIA + 45% CDI*", line=dict(width=1.8, color=CHART_COLORS["bench55fia"], dash="dashdot")))
 tag_chart_layout(fig1, height=500, yaxis_title="Retorno Acumulado (%)")
 st.plotly_chart(fig1, use_container_width=True)
 
@@ -773,13 +845,18 @@ fig2 = go.Figure()
 fig2.add_trace(go.Scatter(x=merged["Date"], y=port_dd * 100, name=port_label, fill="tozeroy", line=dict(color=CHART_COLORS["carteira"]), fillcolor="rgba(0,42,110,0.10)"))
 if compare_mode:
     fig2.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_dd * 100, name="Consolidada", line=dict(color=CHART_COLORS["consolidada"], width=2)))
-if ibov_ok:
+if show_ibov:
     fig2.add_trace(go.Scatter(x=merged["Date"], y=ibov_dd * 100, name="Ibovespa", line=dict(color=CHART_COLORS["ibovespa"], width=1)))
+if show_bench67:
     fig2.add_trace(go.Scatter(x=merged["Date"], y=bench67_dd * 100, name="67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1, dash="dash")))
-if fia_ok and fia_dd.notna().any():
+if show_bench55:
+    fig2.add_trace(go.Scatter(x=merged["Date"], y=bench55_dd * 100, name="55% Ibov + 45% CDI", line=dict(color=CHART_COLORS["bench55"], width=1, dash="dash")))
+if show_fia and fia_dd.notna().any():
     fig2.add_trace(go.Scatter(x=merged["Date"], y=fia_dd * 100, name="Média FIA*", line=dict(color=CHART_COLORS["fia"], width=1, dash="longdash")))
-if fia_ok and bench67fia_dd.notna().any():
+if show_bench67fia and bench67fia_dd.notna().any():
     fig2.add_trace(go.Scatter(x=merged["Date"], y=bench67fia_dd * 100, name="67% FIA + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1, dash="dashdot")))
+if show_bench55fia and bench55fia_dd.notna().any():
+    fig2.add_trace(go.Scatter(x=merged["Date"], y=bench55fia_dd * 100, name="55% FIA + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1, dash="dashdot")))
 tag_chart_layout(fig2, height=350, yaxis_title="Drawdown (%)")
 st.plotly_chart(fig2, use_container_width=True)
 
@@ -808,11 +885,15 @@ yearly = merged.groupby("Year").agg(
     CDI_end=("CDI_cum", lambda x: 1 + x.iloc[-1]),
     Bench67_start=("Bench67_cum", lambda x: 1 + x.iloc[0]),
     Bench67_end=("Bench67_cum", lambda x: 1 + x.iloc[-1]),
+    Bench55_start=("Bench55_cum", lambda x: 1 + x.iloc[0]),
+    Bench55_end=("Bench55_cum", lambda x: 1 + x.iloc[-1]),
     B67FIA_start=("Bench67FIA_cum", lambda x: 1 + x.iloc[0]),
     B67FIA_end=("Bench67FIA_cum",  lambda x: 1 + x.iloc[-1]),
+    B55FIA_start=("Bench55FIA_cum", lambda x: 1 + x.iloc[0]),
+    B55FIA_end=("Bench55FIA_cum",  lambda x: 1 + x.iloc[-1]),
 ).reset_index()
 
-for prefix in ["Port", "Ibov", "CDI", "Bench67", "B67FIA"]:
+for prefix in ["Port", "Ibov", "CDI", "Bench67", "Bench55", "B67FIA", "B55FIA"]:
     yearly[f"{prefix}_ret"] = yearly[f"{prefix}_end"] / yearly[f"{prefix}_start"] - 1
 
 # FIA yearly returns — only for years where we have data
@@ -828,36 +909,43 @@ if compare_mode:
     consol_yearly["Consol_ret"] = consol_yearly["Consol_end"] / consol_yearly["Consol_start"] - 1
     yearly = yearly.merge(consol_yearly[["Year", "Consol_ret"]], on="Year", how="left")
 
+# Build bars and table columns dynamically based on selected benchmarks
 fig3 = go.Figure()
 fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["Port_ret"] * 100, name=port_label, marker_color=CHART_COLORS["carteira"]))
-if compare_mode:
+
+# Dynamic columns for table
+_yr_cols = [("Year", "Ano"), ("Port_ret", port_label)]
+if compare_mode and "Consol_ret" in yearly.columns:
     fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["Consol_ret"] * 100, name="Consolidada", marker_color=CHART_COLORS["consolidada"]))
-if ibov_ok:
+    _yr_cols.append(("Consol_ret", "Consolidada"))
+if show_ibov:
     fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["Ibov_ret"] * 100, name="Ibovespa", marker_color=CHART_COLORS["ibovespa"]))
-fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["CDI_ret"] * 100, name="CDI", marker_color=CHART_COLORS["cdi"]))
-if ibov_ok:
+    _yr_cols.append(("Ibov_ret", "Ibovespa"))
+if show_cdi:
+    fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["CDI_ret"] * 100, name="CDI", marker_color=CHART_COLORS["cdi"]))
+    _yr_cols.append(("CDI_ret", "CDI"))
+if show_bench67:
     fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["Bench67_ret"] * 100, name="67% Ibov + 33% CDI", marker_color=CHART_COLORS["bench67"]))
-if fia_ok:
+    _yr_cols.append(("Bench67_ret", "67% Ibov + 33% CDI"))
+if show_bench55:
+    fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["Bench55_ret"] * 100, name="55% Ibov + 45% CDI", marker_color=CHART_COLORS["bench55"]))
+    _yr_cols.append(("Bench55_ret", "55% Ibov + 45% CDI"))
+if show_fia:
     fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["FIA_ret"] * 100, name="Média FIA*", marker_color=CHART_COLORS["fia"]))
+    _yr_cols.append(("FIA_ret", "Média FIA*"))
+if show_bench67fia:
     fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["B67FIA_ret"] * 100, name="67% FIA + 33% CDI*", marker_color=CHART_COLORS["bench67fia"]))
+    _yr_cols.append(("B67FIA_ret", "67% FIA + 33% CDI*"))
+if show_bench55fia:
+    fig3.add_trace(go.Bar(x=yearly["Year"], y=yearly["B55FIA_ret"] * 100, name="55% FIA + 45% CDI*", marker_color=CHART_COLORS["bench55fia"]))
+    _yr_cols.append(("B55FIA_ret", "55% FIA + 45% CDI*"))
+
 tag_chart_layout(fig3, height=450, yaxis_title="Retorno (%)")
 fig3.update_layout(barmode="group")
 st.plotly_chart(fig3, use_container_width=True)
 
-cols_display = ["Year", "Port_ret", "CDI_ret"]
-col_names = ["Ano", port_label, "CDI"]
-if compare_mode and ibov_ok and fia_ok:
-    cols_display = ["Year", "Port_ret", "Consol_ret", "Ibov_ret", "CDI_ret", "Bench67_ret", "FIA_ret", "B67FIA_ret"]
-    col_names = ["Ano", port_label, "Consolidada", "Ibovespa", "CDI", "67% Ibov + 33% CDI", "Média FIA*", "67% FIA + 33% CDI*"]
-elif compare_mode and ibov_ok:
-    cols_display = ["Year", "Port_ret", "Consol_ret", "Ibov_ret", "CDI_ret", "Bench67_ret"]
-    col_names = ["Ano", port_label, "Consolidada", "Ibovespa", "CDI", "67% Ibov + 33% CDI"]
-elif ibov_ok and fia_ok:
-    cols_display = ["Year", "Port_ret", "Ibov_ret", "CDI_ret", "Bench67_ret", "FIA_ret", "B67FIA_ret"]
-    col_names = ["Ano", port_label, "Ibovespa", "CDI", "67% Ibov + 33% CDI", "Média FIA*", "67% FIA + 33% CDI*"]
-elif ibov_ok:
-    cols_display = ["Year", "Port_ret", "Ibov_ret", "CDI_ret", "Bench67_ret"]
-    col_names = ["Ano", port_label, "Ibovespa", "CDI", "67% Ibov + 33% CDI"]
+cols_display = [c[0] for c in _yr_cols]
+col_names = [c[1] for c in _yr_cols]
 yearly_display = yearly[cols_display].copy()
 yearly_display.columns = col_names
 for c in col_names[1:]:
@@ -896,38 +984,34 @@ for roll_label, roll_window in rolling_windows.items():
             avg_consol = consol_roll.dropna().mean()
             fig_roll.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_roll * 100, name=f"Consolidada (media: {avg_consol:.1%})", line=dict(color=CHART_COLORS["consolidada"], width=2)))
 
-        if ibov_ok:
+        if show_ibov:
             ibov_roll = rolling_return(1 + merged["Ibov_cum"], roll_window)
-            bench_roll = rolling_return(1 + merged["Bench67_cum"], roll_window)
-            avg_ibov = ibov_roll.dropna().mean()
-            avg_bench = bench_roll.dropna().mean()
-            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=ibov_roll * 100, name=f"Ibovespa (media: {avg_ibov:.1%})", line=dict(color=CHART_COLORS["ibovespa"], width=1.5)))
-            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=bench_roll * 100, name=f"67% Ibov + 33% CDI (media: {avg_bench:.1%})", line=dict(color=CHART_COLORS["bench67"], width=1.5, dash="dash")))
-
-        avg_cdi_val = avg_cdi
-        fig_roll.add_trace(go.Scatter(x=merged["Date"], y=cdi_roll * 100, name=f"CDI (media: {avg_cdi_val:.1%})", line=dict(color=CHART_COLORS["cdi"], width=1.5, dash="dot")))
-
-        avg_fia = np.nan
-        avg_b67fia = np.nan
-        if fia_ok and merged["FIA_cum"].notna().sum() > roll_window:
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=ibov_roll * 100, name=f"Ibovespa (media: {ibov_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["ibovespa"], width=1.5)))
+        if show_cdi:
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=cdi_roll * 100, name=f"CDI (media: {avg_cdi:.1%})", line=dict(color=CHART_COLORS["cdi"], width=1.5, dash="dot")))
+        if show_bench67:
+            bench67_roll = rolling_return(1 + merged["Bench67_cum"], roll_window)
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=bench67_roll * 100, name=f"67% Ibov + 33% CDI (media: {bench67_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["bench67"], width=1.5, dash="dash")))
+        if show_bench55:
+            bench55_roll = rolling_return(1 + merged["Bench55_cum"], roll_window)
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=bench55_roll * 100, name=f"55% Ibov + 45% CDI (media: {bench55_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["bench55"], width=1.5, dash="dash")))
+        if show_fia and merged["FIA_cum"].notna().sum() > roll_window:
             fia_roll = rolling_return(1 + merged["FIA_cum"].ffill(), roll_window)
-            avg_fia = fia_roll.dropna().mean()
-            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=fia_roll * 100, name=f"Média FIA* (media: {avg_fia:.1%})", line=dict(color=CHART_COLORS["fia"], width=1.5, dash="longdash")))
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=fia_roll * 100, name=f"Média FIA* (media: {fia_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["fia"], width=1.5, dash="longdash")))
+        if show_bench67fia and merged["FIA_cum"].notna().sum() > roll_window:
             b67fia_roll = rolling_return(1 + merged["Bench67FIA_cum"], roll_window)
-            avg_b67fia = b67fia_roll.dropna().mean()
-            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=b67fia_roll * 100, name=f"67% FIA + 33% CDI* (media: {avg_b67fia:.1%})", line=dict(color=CHART_COLORS["bench67fia"], width=1.5, dash="dashdot")))
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=b67fia_roll * 100, name=f"67% FIA + 33% CDI* (media: {b67fia_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["bench67fia"], width=1.5, dash="dashdot")))
+        if show_bench55fia and merged["FIA_cum"].notna().sum() > roll_window:
+            b55fia_roll = rolling_return(1 + merged["Bench55FIA_cum"], roll_window)
+            fig_roll.add_trace(go.Scatter(x=merged["Date"], y=b55fia_roll * 100, name=f"55% FIA + 45% CDI* (media: {b55fia_roll.dropna().mean():.1%})", line=dict(color=CHART_COLORS["bench55fia"], width=1.5, dash="dashdot")))
 
         tag_chart_layout(fig_roll, height=430, yaxis_title=f"Retorno {roll_label} (%)")
         st.plotly_chart(fig_roll, use_container_width=True)
 
         # Tabela resumo dos retornos medios
-        avg_data = {"": [f"Retorno médio {roll_label}"], port_label: [f"{avg_port:.2%}"], "CDI": [f"{avg_cdi_val:.2%}"]}
-        if ibov_ok:
-            avg_data["Ibovespa"] = [f"{avg_ibov:.2%}"]
-            avg_data["67% Ibov + 33% CDI"] = [f"{avg_bench:.2%}"]
-        if not np.isnan(avg_fia):
-            avg_data["Média FIA*"] = [f"{avg_fia:.2%}"]
-            avg_data["67% FIA + 33% CDI*"] = [f"{avg_b67fia:.2%}"]
+        avg_data = {"": [f"Retorno médio {roll_label}"], port_label: [f"{avg_port:.2%}"]}
+        if show_cdi:
+            avg_data["CDI"] = [f"{avg_cdi:.2%}"]
         avg_df = pd.DataFrame(avg_data)
         st.markdown(style_table(avg_df), unsafe_allow_html=True)
 
@@ -947,15 +1031,20 @@ if compare_mode:
         on="Date", how="inner",
     )
     fig5.add_trace(go.Scatter(x=_exc["Date"], y=(_exc["Portfolio_cum"] - _exc["Consol_cum"]) * 100, name=f"{port_label} vs Consolidada", line=dict(color=CHART_COLORS["consolidada"], width=2.5)))
-if ibov_ok:
+if show_ibov:
     fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Ibov_cum"]) * 100, name=f"{port_label} vs Ibovespa", line=dict(color=CHART_COLORS["ibovespa"], width=1.8)))
-fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["CDI_cum"]) * 100, name=f"{port_label} vs CDI", line=dict(color=CHART_COLORS["cdi"], width=1.8)))
-if ibov_ok:
+if show_cdi:
+    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["CDI_cum"]) * 100, name=f"{port_label} vs CDI", line=dict(color=CHART_COLORS["cdi"], width=1.8)))
+if show_bench67:
     fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench67_cum"]) * 100, name=f"{port_label} vs 67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1.8)))
-if fia_ok and merged["FIA_cum"].notna().any():
+if show_bench55:
+    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench55_cum"]) * 100, name=f"{port_label} vs 55% Ibov + 45% CDI", line=dict(color=CHART_COLORS["bench55"], width=1.8)))
+if show_fia and merged["FIA_cum"].notna().any():
     fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["FIA_cum"]) * 100, name=f"{port_label} vs Média FIA*", line=dict(color=CHART_COLORS["fia"], width=1.8, dash="longdash")))
-if fia_ok:
+if show_bench67fia:
     fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench67FIA_cum"]) * 100, name=f"{port_label} vs 67% FIA + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1.8, dash="dashdot")))
+if show_bench55fia:
+    fig5.add_trace(go.Scatter(x=merged["Date"], y=(merged["Portfolio_cum"] - merged["Bench55FIA_cum"]) * 100, name=f"{port_label} vs 55% FIA + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1.8, dash="dashdot")))
 fig5.add_hline(y=0, line_dash="dash", line_color=TAG_CINZA)
 tag_chart_layout(fig5, height=400, yaxis_title="Excesso (p.p.)", ticksuffix=" p.p.")
 st.plotly_chart(fig5, use_container_width=True)
@@ -993,28 +1082,21 @@ def _fia_period_ret(subset):
         return np.nan
     return (1 + vals.iloc[-1]) / (1 + vals.iloc[0]) - 1
 
-def period_return_from_end(df, n):
-    if len(df) < n + 1:
-        return None
-    idx = len(df) - 1 - n
-    port_ret = (1 + df["Portfolio_cum"].iloc[-1]) / (1 + df["Portfolio_cum"].iloc[idx]) - 1
-    ibov_ret = (1 + df["Ibov_cum"].iloc[-1]) / (1 + df["Ibov_cum"].iloc[idx]) - 1 if ibov_ok else np.nan
-    cdi_ret = (1 + df["CDI_cum"].iloc[-1]) / (1 + df["CDI_cum"].iloc[idx]) - 1
-    bench_ret = (1 + df["Bench67_cum"].iloc[-1]) / (1 + df["Bench67_cum"].iloc[idx]) - 1 if ibov_ok else np.nan
-    fia_ret = _fia_period_ret(df.iloc[idx:]) if fia_ok else np.nan
-    b67fia_ret = (1 + df["Bench67FIA_cum"].iloc[-1]) / (1 + df["Bench67FIA_cum"].iloc[idx]) - 1 if fia_ok else np.nan
-    return port_ret, ibov_ret, cdi_ret, bench_ret, fia_ret, b67fia_ret
+def _cum_ret(s, i0, i1):
+    return (1 + s.iloc[i1]) / (1 + s.iloc[i0]) - 1
 
 def _period_row(label, subset):
     if len(subset) < 2:
         return None
     r = {"Período": label}
-    r["Carteira"] = (1 + subset["Portfolio_cum"].iloc[-1]) / (1 + subset["Portfolio_cum"].iloc[0]) - 1
-    r["Ibovespa"] = ((1 + subset["Ibov_cum"].iloc[-1]) / (1 + subset["Ibov_cum"].iloc[0]) - 1) if ibov_ok else np.nan
-    r["CDI"] = (1 + subset["CDI_cum"].iloc[-1]) / (1 + subset["CDI_cum"].iloc[0]) - 1
-    r["67% Ibov + 33% CDI"] = ((1 + subset["Bench67_cum"].iloc[-1]) / (1 + subset["Bench67_cum"].iloc[0]) - 1) if ibov_ok else np.nan
-    r["Média FIA*"] = _fia_period_ret(subset) if fia_ok else np.nan
-    r["67% FIA + 33% CDI*"] = (1 + subset["Bench67FIA_cum"].iloc[-1]) / (1 + subset["Bench67FIA_cum"].iloc[0]) - 1 if fia_ok else np.nan
+    r[port_label] = _cum_ret(subset["Portfolio_cum"], 0, -1)
+    if show_ibov: r["Ibovespa"] = _cum_ret(subset["Ibov_cum"], 0, -1)
+    if show_cdi: r["CDI"] = _cum_ret(subset["CDI_cum"], 0, -1)
+    if show_bench67: r["67% Ibov + 33% CDI"] = _cum_ret(subset["Bench67_cum"], 0, -1)
+    if show_bench55: r["55% Ibov + 45% CDI"] = _cum_ret(subset["Bench55_cum"], 0, -1)
+    if show_fia: r["Média FIA*"] = _fia_period_ret(subset)
+    if show_bench67fia: r["67% FIA + 33% CDI*"] = _cum_ret(subset["Bench67FIA_cum"], 0, -1)
+    if show_bench55fia: r["55% FIA + 45% CDI*"] = _cum_ret(subset["Bench55FIA_cum"], 0, -1)
     return r
 
 windows = {"1M": 21, "3M": 63, "6M": 126, "1A": 252, "2A": 504, "3A": 756, "5A": 1260, "Desde Inicio": len(merged_full) - 1}
@@ -1031,22 +1113,16 @@ if r:
     rows.append(r)
 
 for label, window in windows.items():
-    result = period_return_from_end(merged_full, window)
-    if result:
-        rows.append({"Período": label, "Carteira": result[0], "Ibovespa": result[1], "CDI": result[2], "67% Ibov + 33% CDI": result[3], "Média FIA*": result[4], "67% FIA + 33% CDI*": result[5]})
+    if len(merged_full) >= window + 1:
+        subset = merged_full.iloc[len(merged_full) - 1 - window:]
+        r = _period_row(label, subset)
+        if r:
+            rows.append(r)
 
 period_df = pd.DataFrame(rows)
-fmt_cols = ["Carteira", "CDI"]
-if ibov_ok and fia_ok:
-    fmt_cols = ["Carteira", "Ibovespa", "CDI", "67% Ibov + 33% CDI", "Média FIA*", "67% FIA + 33% CDI*"]
-elif ibov_ok:
-    fmt_cols = ["Carteira", "Ibovespa", "CDI", "67% Ibov + 33% CDI"]
-    period_df = period_df.drop(columns=["Média FIA*"], errors="ignore")
-else:
-    period_df = period_df[["Período", "Carteira", "CDI"]]
+fmt_cols = [c for c in period_df.columns if c != "Período"]
 for c in fmt_cols:
-    if c in period_df.columns:
-        period_df[c] = period_df[c].apply(lambda x: f"{x:.2%}" if pd.notna(x) and not np.isnan(x) else "\u2014")
+    period_df[c] = period_df[c].apply(lambda x: f"{x:.2%}" if pd.notna(x) and not np.isnan(x) else "\u2014")
 
 st.markdown(style_table(period_df, highlight_best=True), unsafe_allow_html=True)
 
@@ -1066,16 +1142,24 @@ if n_days >= 252:
     if compare_mode and len(consol_merged) > 252:
         consol_merged["Port_vol12"] = consol_merged["Port_ret"].rolling(252).std() * np.sqrt(252)
         fig7.add_trace(go.Scatter(x=consol_merged["Date"], y=consol_merged["Port_vol12"] * 100, name="Consolidada", line=dict(color=CHART_COLORS["consolidada"], width=2)))
-    if ibov_ok:
+    if show_ibov:
         merged["Ibov_vol12"] = merged["Ibov_ret"].rolling(252).std() * np.sqrt(252)
-        merged["Bench67_vol12"] = merged["Bench67_ret"].rolling(252).std() * np.sqrt(252)
         fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["Ibov_vol12"] * 100, name="Ibovespa", line=dict(color=CHART_COLORS["ibovespa"], width=1.5)))
+    if show_bench67:
+        merged["Bench67_vol12"] = merged["Bench67_ret"].rolling(252).std() * np.sqrt(252)
         fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench67_vol12"] * 100, name="67% Ibov + 33% CDI", line=dict(color=CHART_COLORS["bench67"], width=1.5, dash="dash")))
-    if fia_ok:
+    if show_bench55:
+        merged["Bench55_vol12"] = merged["Bench55_ret"].rolling(252).std() * np.sqrt(252)
+        fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["Bench55_vol12"] * 100, name="55% Ibov + 45% CDI", line=dict(color=CHART_COLORS["bench55"], width=1.5, dash="dash")))
+    if show_fia:
         merged["FIA_vol12"] = merged["FIA_ret"].rolling(252).std() * np.sqrt(252)
-        merged["B67FIA_vol12"] = merged["Bench67FIA_ret"].rolling(252).std() * np.sqrt(252)
         fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["FIA_vol12"] * 100, name="Média FIA*", line=dict(color=CHART_COLORS["fia"], width=1.5, dash="longdash")))
+    if show_bench67fia:
+        merged["B67FIA_vol12"] = merged["Bench67FIA_ret"].rolling(252).std() * np.sqrt(252)
         fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["B67FIA_vol12"] * 100, name="67% FIA + 33% CDI*", line=dict(color=CHART_COLORS["bench67fia"], width=1.5, dash="dashdot")))
+    if show_bench55fia:
+        merged["B55FIA_vol12"] = merged["Bench55FIA_ret"].rolling(252).std() * np.sqrt(252)
+        fig7.add_trace(go.Scatter(x=merged["Date"], y=merged["B55FIA_vol12"] * 100, name="55% FIA + 45% CDI*", line=dict(color=CHART_COLORS["bench55fia"], width=1.5, dash="dashdot")))
     tag_chart_layout(fig7, height=380, yaxis_title="Volatilidade (%)")
     st.plotly_chart(fig7, use_container_width=True)
 
