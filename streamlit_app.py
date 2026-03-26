@@ -58,19 +58,17 @@ ALL_BENCHMARKS = {
 # ── Carteira Modelo: assets, proxies, and default weights ────────────────────
 # Proxy types: "ibov" (Ibovespa), "fia" (Média FIA), "cdi" (CDI)
 CM_ASSETS = [
-    {"key": "bova11",        "name": "BOVA11",              "proxy": "ibov", "pct": 31.66},
-    {"key": "regio",         "name": "Régio FIA",           "proxy": "fia",  "pct": 6.94},
-    {"key": "algido",        "name": "Algido FIA",          "proxy": "fia",  "pct": 1.01},
-    {"key": "norte",         "name": "Norte Long Bias FIA", "proxy": "fia",  "pct": 0.00},
-    {"key": "sharp",         "name": "Sharp Long Biased FIA","proxy": "fia", "pct": 0.00},
-    {"key": "tarpon",        "name": "Tarpon GT FIA",       "proxy": "fia",  "pct": 4.82},
-    {"key": "kiron",         "name": "Kiron FIA",           "proxy": "fia",  "pct": 5.00},
-    {"key": "real_investor", "name": "Real Investor FIA",   "proxy": "fia",  "pct": 10.00},
-    {"key": "atmos",         "name": "TB Atmos FIA",        "proxy": "fia",  "pct": 16.91},
     {"key": "tag_pe",        "name": "TAG Private Equity",  "proxy": "cdi",  "pct": 4.18},
     {"key": "tag_ventures",  "name": "TAG Ventures",        "proxy": "cdi",  "pct": 2.78},
     {"key": "lc_iii",        "name": "LC III FIDC",         "proxy": "cdi",  "pct": 2.22},
     {"key": "ntnb",          "name": "NTN-B IPCA+6%",       "proxy": "imab", "pct": 9.48},
+    {"key": "bova11",        "name": "BOVA11",              "proxy": "ibov", "pct": 31.66},
+    {"key": "regio",         "name": "Régio FIA",           "proxy": "fia",  "pct": 6.94},
+    {"key": "algido",        "name": "Algido FIA",          "proxy": "fia",  "pct": 1.01},
+    {"key": "tarpon",        "name": "Tarpon GT FIA",       "proxy": "fia",  "pct": 4.82},
+    {"key": "kiron",         "name": "Kiron FIA",           "proxy": "fia",  "pct": 5.00},
+    {"key": "real_investor", "name": "Real Investor FIA",   "proxy": "fia",  "pct": 10.00},
+    {"key": "atmos",         "name": "TB Atmos FIA",        "proxy": "fia",  "pct": 16.91},
     {"key": "cdi_cash",      "name": "CDI (Caixa)",         "proxy": "cdi",  "pct": 5.00},
 ]
 
