@@ -1244,6 +1244,17 @@ st.caption("Retorno da carteira e benchmarks em diferentes horizontes de tempo."
 
 merged_full = build_merged(port_full, ibov_raw, cdi_raw, fia_raw, imab_raw)
 
+# Carteira Modelo on merged_full
+if show_cm:
+    _proxy_map_f = {"ibov": "Ibov_daily_ret", "fia": "ret_fia", "cdi": "CDI_daily_ret", "imab": "ret_imab"}
+    _cm_daily_f = pd.Series(0.0, index=merged_full.index)
+    for asset in CM_ASSETS:
+        w = cm_weights[asset["key"]] / 100.0
+        if w > 0:
+            _cm_daily_f += w * merged_full[_proxy_map_f[asset["proxy"]]].fillna(0)
+    merged_full["CM_factor"] = (1 + _cm_daily_f).cumprod()
+    merged_full["CM_cum"] = merged_full["CM_factor"] - 1
+
 def _fia_period_ret(subset):
     """Return FIA cumulative return for a subset, or NaN if no data."""
     vals = subset["FIA_cum"].dropna()
