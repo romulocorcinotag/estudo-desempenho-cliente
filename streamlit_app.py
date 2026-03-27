@@ -1446,7 +1446,7 @@ if os.path.exists(_carteira_atual_path):
             diff_val = row["Modelo (%)"] - row["Atual (%)"]
             rows_html += f"""<tr style="background-color:{bg};transition:background 0.15s;" onmouseover="this.style.backgroundColor='#f0ede6'" onmouseout="this.style.backgroundColor='{bg}'">
                 <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:left;font-size:0.84rem;color:#1a1a1a;font-weight:500;">{row[label_col]}</td>
-                <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:center;font-size:0.84rem;font-weight:700;color:{TAG_AZUL_ESCURO};">{row['Atual (%)']:.2f}%</td>
+                <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:center;"><span style="display:inline-block;background:rgba(0,42,110,0.07);color:{TAG_AZUL_ESCURO};font-weight:700;font-size:0.84rem;padding:3px 12px;border-radius:20px;border:1px solid rgba(0,42,110,0.13);">{row['Atual (%)']:.2f}%</span></td>
                 <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:center;"><span style="display:inline-block;background:rgba(99,13,36,0.08);color:{TAG_VERMELHO};font-weight:700;font-size:0.84rem;padding:3px 12px;border-radius:20px;border:1px solid rgba(99,13,36,0.15);">{row['Modelo (%)']:.2f}%</span></td>
                 <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:center;">{_diff_cell(diff_val)}</td>
             </tr>"""
@@ -1457,7 +1457,7 @@ if os.path.exists(_carteira_atual_path):
         tot_diff = tot_modelo - tot_atual
         rows_html += f"""<tr style="background-color:#f0efeb;">
             <td style="padding:12px 16px;font-weight:700;font-size:0.85rem;color:{TAG_VERMELHO};border-top:2px solid {TAG_VERMELHO};">TOTAL</td>
-            <td style="padding:12px 16px;text-align:center;font-weight:700;font-size:0.85rem;color:{TAG_AZUL_ESCURO};border-top:2px solid {TAG_VERMELHO};">{tot_atual:.2f}%</td>
+            <td style="padding:12px 16px;text-align:center;border-top:2px solid {TAG_VERMELHO};"><span style="display:inline-block;background:rgba(0,42,110,0.10);color:{TAG_AZUL_ESCURO};font-weight:700;font-size:0.85rem;padding:3px 12px;border-radius:20px;border:1px solid rgba(0,42,110,0.18);">{tot_atual:.2f}%</span></td>
             <td style="padding:12px 16px;text-align:center;border-top:2px solid {TAG_VERMELHO};"><span style="display:inline-block;background:rgba(99,13,36,0.12);color:{TAG_VERMELHO};font-weight:700;font-size:0.85rem;padding:3px 12px;border-radius:20px;border:1px solid rgba(99,13,36,0.2);">{tot_modelo:.2f}%</span></td>
             <td style="padding:12px 16px;text-align:center;border-top:2px solid {TAG_VERMELHO};">{_diff_cell(tot_diff)}</td>
         </tr>"""
