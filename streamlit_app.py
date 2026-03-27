@@ -58,18 +58,18 @@ ALL_BENCHMARKS = {
 # ── Carteira Modelo: assets, proxies, and default weights ────────────────────
 # Proxy types: "ibov" (Ibovespa), "fia" (Média FIA), "cdi" (CDI)
 CM_ASSETS = [
-    {"key": "tag_pe",        "name": "TAG Private Equity",  "proxy": "cdi",  "pct": 4.18},
-    {"key": "tag_ventures",  "name": "TAG Ventures",        "proxy": "cdi",  "pct": 2.78},
-    {"key": "lc_iii",        "name": "LC III FIDC",         "proxy": "cdi",  "pct": 2.22},
-    {"key": "ntnb",          "name": "NTN-B IPCA+6%",       "proxy": "imab", "pct": 9.48},
-    {"key": "bova11",        "name": "BOVA11",              "proxy": "ibov", "pct": 31.66},
-    {"key": "regio",         "name": "Régio FIA",           "proxy": "fia",  "pct": 6.94},
-    {"key": "algido",        "name": "Algido FIA",          "proxy": "fia",  "pct": 1.01},
-    {"key": "tarpon",        "name": "Tarpon GT FIA",       "proxy": "fia",  "pct": 4.82},
-    {"key": "kiron",         "name": "Kiron FIA",           "proxy": "fia",  "pct": 5.00},
-    {"key": "real_investor", "name": "Real Investor FIA",   "proxy": "fia",  "pct": 10.00},
-    {"key": "atmos",         "name": "TB Atmos FIA",        "proxy": "fia",  "pct": 16.91},
-    {"key": "cdi_cash",      "name": "CDI (Caixa)",         "proxy": "cdi",  "pct": 5.00},
+    {"key": "tag_pe",        "name": "TAG Private Equity",  "proxy": "cdi",  "pct": 4.18,  "estrategia": "ALT PRIVATE EQUITY"},
+    {"key": "tag_ventures",  "name": "TAG Ventures",        "proxy": "cdi",  "pct": 2.78,  "estrategia": "ALT VENTURE CAPITAL"},
+    {"key": "lc_iii",        "name": "LC III FIDC",         "proxy": "cdi",  "pct": 2.22,  "estrategia": "ALTERNATIVOS PRECATÓRIOS"},
+    {"key": "ntnb",          "name": "NTN-B IPCA+6%",       "proxy": "imab", "pct": 9.48,  "estrategia": "RF TPF NTNB OU TESOURO INFLAÇÃO"},
+    {"key": "bova11",        "name": "BOVA11",              "proxy": "ibov", "pct": 31.66, "estrategia": "RV ETFs INDEXADOS BOVESPA"},
+    {"key": "regio",         "name": "Régio FIA",           "proxy": "fia",  "pct": 6.94,  "estrategia": "RV FUNDOS CLUB DEAL"},
+    {"key": "algido",        "name": "Algido FIA",          "proxy": "fia",  "pct": 1.01,  "estrategia": "RV FUNDOS CLUB DEAL"},
+    {"key": "tarpon",        "name": "Tarpon GT FIA",       "proxy": "fia",  "pct": 4.82,  "estrategia": "RV FUNDOS SMALL CAPS"},
+    {"key": "kiron",         "name": "Kiron FIA",           "proxy": "fia",  "pct": 5.00,  "estrategia": "RV FUNDOS VALOR"},
+    {"key": "real_investor", "name": "Real Investor FIA",   "proxy": "fia",  "pct": 10.00, "estrategia": "RV FUNDOS VALOR"},
+    {"key": "atmos",         "name": "TB Atmos FIA",        "proxy": "fia",  "pct": 16.91, "estrategia": "RV FUNDOS VALOR"},
+    {"key": "cdi_cash",      "name": "CDI (Caixa)",         "proxy": "cdi",  "pct": 5.00,  "estrategia": "CAIXA"},
 ]
 
 _logo_path = os.path.join(_DIR, "tag_logo.png")
@@ -1404,6 +1404,87 @@ with c2:
     fig8.add_hline(y=100, line_dash="dash", line_color=TAG_VERMELHO, annotation_text="100% CDI", annotation_font_color=TAG_VERMELHO)
     tag_chart_layout(fig8, height=400, yaxis_title="% do CDI", ticksuffix="%")
     st.plotly_chart(fig8, use_container_width=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 9) COMPOSIÇÃO: CARTEIRA ATUAL vs CARTEIRA MODELO
+# ══════════════════════════════════════════════════════════════════════════════
+
+_carteira_atual_path = os.path.join(_DIR, "carteira_atual.csv")
+if os.path.exists(_carteira_atual_path):
+    st.markdown("---")
+    st.subheader("📊 Composição: Carteira Atual vs Carteira Modelo")
+
+    _ca = pd.read_csv(_carteira_atual_path)
+    _cm_dict = {a["key"]: a for a in CM_ASSETS}
+    _cm_weights_lookup = {a["key"]: cm_weights.get(a["key"], a["pct"]) for a in CM_ASSETS}
+
+    # ── Table 1: By Ativo ──
+    _rows_ativo = []
+    _used_cm_keys = set()
+    for _, row in _ca.iterrows():
+        cm_key = row["cm_key"] if pd.notna(row["cm_key"]) and row["cm_key"] != "" else None
+        modelo_pct = _cm_weights_lookup.get(cm_key, 0.0) if cm_key else 0.0
+        diff = row["pct_pl"] - modelo_pct
+        _rows_ativo.append({
+            "Ativo": row["ativo"],
+            "Atual (%)": row["pct_pl"],
+            "Modelo (%)": modelo_pct,
+            "Diferença (p.p.)": diff,
+        })
+        if cm_key:
+            _used_cm_keys.add(cm_key)
+    # Add CM assets that are in the model but not in the current portfolio
+    for a in CM_ASSETS:
+        if a["key"] not in _used_cm_keys:
+            modelo_pct = _cm_weights_lookup.get(a["key"], a["pct"])
+            _rows_ativo.append({
+                "Ativo": a["name"],
+                "Atual (%)": 0.0,
+                "Modelo (%)": modelo_pct,
+                "Diferença (p.p.)": -modelo_pct,
+            })
+
+    df_ativo = pd.DataFrame(_rows_ativo)
+
+    def _color_diff(val):
+        if val > 0.01:
+            return "color: #22c55e; font-weight: 600;"
+        elif val < -0.01:
+            return "color: #ef4444; font-weight: 600;"
+        return "color: #a3a3a3;"
+
+    def _fmt_diff(val):
+        sign = "+" if val > 0 else ""
+        return f"{sign}{val:.2f}"
+
+    st.markdown("**Por Ativo**")
+    st.dataframe(df_ativo.style
+        .format({"Atual (%)": "{:.2f}", "Modelo (%)": "{:.2f}", "Diferença (p.p.)": _fmt_diff})
+        .map(_color_diff, subset=["Diferença (p.p.)"])
+        .hide(axis="index"),
+        use_container_width=True, hide_index=True)
+
+    # ── Table 2: By Estratégia ──
+    _ca_strat = _ca.groupby("estrategia")["pct_pl"].sum().reset_index()
+    _ca_strat.columns = ["Estratégia", "Atual (%)"]
+
+    _cm_strat_data = []
+    for a in CM_ASSETS:
+        _cm_strat_data.append({"estrategia": a["estrategia"], "modelo_pct": _cm_weights_lookup.get(a["key"], a["pct"])})
+    _cm_strat = pd.DataFrame(_cm_strat_data).groupby("estrategia")["modelo_pct"].sum().reset_index()
+    _cm_strat.columns = ["Estratégia", "Modelo (%)"]
+
+    df_strat = _ca_strat.merge(_cm_strat, on="Estratégia", how="outer").fillna(0.0)
+    df_strat["Diferença (p.p.)"] = df_strat["Atual (%)"] - df_strat["Modelo (%)"]
+    df_strat = df_strat.sort_values("Atual (%)", ascending=False).reset_index(drop=True)
+
+    st.markdown("**Por Estratégia**")
+    st.dataframe(df_strat.style
+        .format({"Atual (%)": "{:.2f}", "Modelo (%)": "{:.2f}", "Diferença (p.p.)": _fmt_diff})
+        .map(_color_diff, subset=["Diferença (p.p.)"])
+        .hide(axis="index"),
+        use_container_width=True, hide_index=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
