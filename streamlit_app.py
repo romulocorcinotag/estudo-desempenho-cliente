@@ -1422,49 +1422,72 @@ if os.path.exists(_carteira_atual_path):
     # ── Helper: build HTML table ──
     def _build_comparison_table(df, label_col, title):
         """Render a professional HTML comparison table."""
-        def _diff_html(val):
+        def _diff_cell(val):
+            """Green = modelo > atual (precisa aumentar), Red = modelo < atual (precisa reduzir)."""
             sign = "+" if val > 0 else ""
             txt = f"{sign}{val:.2f}"
-            if val > 0.01:
-                return f'<span style="color:#16a34a;font-weight:700;">&#9650; {txt}</span>'
-            elif val < -0.01:
-                return f'<span style="color:#dc2626;font-weight:700;">&#9660; {txt}</span>'
-            return f'<span style="color:#9ca3af;font-weight:500;">{txt}</span>'
+            if val < -0.01:
+                # Atual > Modelo → precisa reduzir → vermelho
+                return f"""<div style="display:inline-flex;align-items:center;gap:4px;background:rgba(220,38,38,0.08);
+                    border-radius:6px;padding:3px 10px;">
+                    <span style="color:#dc2626;font-size:0.7rem;">&#9660;</span>
+                    <span style="color:#dc2626;font-weight:700;font-size:0.84rem;">{txt}</span></div>"""
+            elif val > 0.01:
+                # Atual < Modelo → precisa aumentar → verde
+                return f"""<div style="display:inline-flex;align-items:center;gap:4px;background:rgba(22,163,74,0.08);
+                    border-radius:6px;padding:3px 10px;">
+                    <span style="color:#16a34a;font-size:0.7rem;">&#9650;</span>
+                    <span style="color:#16a34a;font-weight:700;font-size:0.84rem;">{txt}</span></div>"""
+            return f'<span style="color:#a3a3a3;font-weight:500;font-size:0.84rem;">0.00</span>'
 
+        def _bar_html(atual, modelo, max_val):
+            """Mini horizontal bar comparing atual vs modelo."""
+            w_atual = (atual / max_val * 100) if max_val > 0 else 0
+            w_modelo = (modelo / max_val * 100) if max_val > 0 else 0
+            return f"""<div style="position:relative;height:6px;background:#ede9e3;border-radius:3px;width:100%;min-width:60px;">
+                <div style="position:absolute;top:0;left:0;height:100%;width:{w_modelo:.1f}%;background:rgba(99,13,36,0.18);border-radius:3px;"></div>
+                <div style="position:absolute;top:0;left:0;height:100%;width:{w_atual:.1f}%;background:{TAG_VERMELHO};border-radius:3px;opacity:0.7;"></div>
+            </div>"""
+
+        max_val = max(df["Atual (%)"].max(), df["Modelo (%)"].max(), 1)
         rows_html = ""
         for i, row in df.iterrows():
-            bg = "background-color:#fafaf8;" if i % 2 == 0 else "background-color:#ffffff;"
-            diff_val = row["Diferença (p.p.)"]
-            rows_html += f"""<tr style="{bg}">
-                <td style="padding:10px 14px;border-bottom:1px solid #e8e6dd;text-align:left;font-size:0.85rem;color:#1a1a1a;">{row[label_col]}</td>
-                <td style="padding:10px 14px;border-bottom:1px solid #e8e6dd;text-align:center;font-size:0.85rem;font-weight:600;color:{TAG_AZUL_ESCURO};">{row['Atual (%)']:.2f}%</td>
-                <td style="padding:10px 14px;border-bottom:1px solid #e8e6dd;text-align:center;font-size:0.85rem;color:#6a6864;">{row['Modelo (%)']:.2f}%</td>
-                <td style="padding:10px 14px;border-bottom:1px solid #e8e6dd;text-align:center;font-size:0.85rem;">{_diff_html(diff_val)}</td>
+            bg = "#fafaf8" if i % 2 == 0 else "#ffffff"
+            diff_val = row["Modelo (%)"] - row["Atual (%)"]
+            rows_html += f"""<tr style="background-color:{bg};transition:background 0.15s;" onmouseover="this.style.backgroundColor='#f0ede6'" onmouseout="this.style.backgroundColor='{bg}'">
+                <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:left;font-size:0.84rem;color:#1a1a1a;font-weight:500;">{row[label_col]}</td>
+                <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:center;font-size:0.84rem;font-weight:700;color:{TAG_AZUL_ESCURO};">{row['Atual (%)']:.2f}%</td>
+                <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:center;font-size:0.84rem;color:#6a6864;font-weight:500;">{row['Modelo (%)']:.2f}%</td>
+                <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:center;">{_diff_cell(diff_val)}</td>
+                <td style="padding:11px 12px;border-bottom:1px solid #ede9e3;vertical-align:middle;">{_bar_html(row['Atual (%)'], row['Modelo (%)'], max_val)}</td>
             </tr>"""
 
         # Totals row
         tot_atual = df["Atual (%)"].sum()
         tot_modelo = df["Modelo (%)"].sum()
-        tot_diff = tot_atual - tot_modelo
+        tot_diff = tot_modelo - tot_atual
         rows_html += f"""<tr style="background-color:#f0efeb;">
-            <td style="padding:10px 14px;font-weight:700;font-size:0.85rem;color:{TAG_VERMELHO};border-top:2px solid {TAG_VERMELHO};">TOTAL</td>
-            <td style="padding:10px 14px;text-align:center;font-weight:700;font-size:0.85rem;color:{TAG_AZUL_ESCURO};border-top:2px solid {TAG_VERMELHO};">{tot_atual:.2f}%</td>
-            <td style="padding:10px 14px;text-align:center;font-weight:700;font-size:0.85rem;color:#6a6864;border-top:2px solid {TAG_VERMELHO};">{tot_modelo:.2f}%</td>
-            <td style="padding:10px 14px;text-align:center;font-size:0.85rem;border-top:2px solid {TAG_VERMELHO};">{_diff_html(tot_diff)}</td>
+            <td style="padding:12px 16px;font-weight:700;font-size:0.85rem;color:{TAG_VERMELHO};border-top:2px solid {TAG_VERMELHO};">TOTAL</td>
+            <td style="padding:12px 16px;text-align:center;font-weight:700;font-size:0.85rem;color:{TAG_AZUL_ESCURO};border-top:2px solid {TAG_VERMELHO};">{tot_atual:.2f}%</td>
+            <td style="padding:12px 16px;text-align:center;font-weight:700;font-size:0.85rem;color:#6a6864;border-top:2px solid {TAG_VERMELHO};">{tot_modelo:.2f}%</td>
+            <td style="padding:12px 16px;text-align:center;border-top:2px solid {TAG_VERMELHO};">{_diff_cell(tot_diff)}</td>
+            <td style="border-top:2px solid {TAG_VERMELHO};"></td>
         </tr>"""
 
         html = f"""
-        <div style="background:{TAG_BRANCO};border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(99,13,36,0.08);border:1px solid #e8e6dd;margin-bottom:1.5rem;">
-            <div style="background:linear-gradient(135deg, {TAG_VERMELHO} 0%, {TAG_VERMELHO_LIGHT} 100%);padding:12px 18px;">
-                <span style="color:#ffffff;font-weight:700;font-size:0.95rem;letter-spacing:0.04em;text-transform:uppercase;">{title}</span>
+        <div style="background:{TAG_BRANCO};border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(99,13,36,0.10);border:1px solid #e8e6dd;margin-bottom:2rem;">
+            <div style="background:linear-gradient(135deg, {TAG_VERMELHO} 0%, {TAG_VERMELHO_LIGHT} 100%);padding:14px 20px;display:flex;align-items:center;gap:10px;">
+                <span style="color:rgba(255,255,255,0.85);font-size:1.1rem;">&#9632;</span>
+                <span style="color:#ffffff;font-weight:700;font-size:0.95rem;letter-spacing:0.05em;text-transform:uppercase;">{title}</span>
             </div>
             <table style="width:100%;border-collapse:collapse;">
                 <thead>
                     <tr style="background-color:#f5f4f0;">
-                        <th style="padding:10px 14px;text-align:left;font-size:0.75rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #e8e6dd;">{label_col}</th>
-                        <th style="padding:10px 14px;text-align:center;font-size:0.75rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #e8e6dd;">Atual (%)</th>
-                        <th style="padding:10px 14px;text-align:center;font-size:0.75rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #e8e6dd;">Modelo (%)</th>
-                        <th style="padding:10px 14px;text-align:center;font-size:0.75rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #e8e6dd;">Diferença (p.p.)</th>
+                        <th style="padding:11px 16px;text-align:left;font-size:0.72rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid #e0ddd5;">{label_col}</th>
+                        <th style="padding:11px 16px;text-align:center;font-size:0.72rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid #e0ddd5;">Atual</th>
+                        <th style="padding:11px 16px;text-align:center;font-size:0.72rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid #e0ddd5;">Modelo</th>
+                        <th style="padding:11px 16px;text-align:center;font-size:0.72rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid #e0ddd5;">Diferença</th>
+                        <th style="padding:11px 12px;text-align:center;font-size:0.72rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid #e0ddd5;min-width:80px;"></th>
                     </tr>
                 </thead>
                 <tbody>{rows_html}</tbody>
