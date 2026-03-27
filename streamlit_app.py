@@ -1441,12 +1441,12 @@ if os.path.exists(_carteira_atual_path):
             return f'<span style="color:#a3a3a3;font-weight:500;font-size:0.84rem;">0.00</span>'
 
         def _bar_html(atual, modelo, max_val):
-            """Mini horizontal bar comparing atual vs modelo."""
+            """Mini horizontal bar: dark = modelo (target), light = atual."""
             w_atual = (atual / max_val * 100) if max_val > 0 else 0
             w_modelo = (modelo / max_val * 100) if max_val > 0 else 0
             return f"""<div style="position:relative;height:6px;background:#ede9e3;border-radius:3px;width:100%;min-width:60px;">
-                <div style="position:absolute;top:0;left:0;height:100%;width:{w_modelo:.1f}%;background:rgba(99,13,36,0.18);border-radius:3px;"></div>
-                <div style="position:absolute;top:0;left:0;height:100%;width:{w_atual:.1f}%;background:{TAG_VERMELHO};border-radius:3px;opacity:0.7;"></div>
+                <div style="position:absolute;top:0;left:0;height:100%;width:{w_atual:.1f}%;background:rgba(99,13,36,0.18);border-radius:3px;"></div>
+                <div style="position:absolute;top:0;left:0;height:100%;width:{w_modelo:.1f}%;background:{TAG_VERMELHO};border-radius:3px;opacity:0.7;"></div>
             </div>"""
 
         max_val = max(df["Atual (%)"].max(), df["Modelo (%)"].max(), 1)
