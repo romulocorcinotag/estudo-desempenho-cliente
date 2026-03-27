@@ -1440,16 +1440,6 @@ if os.path.exists(_carteira_atual_path):
                     <span style="color:#16a34a;font-weight:700;font-size:0.84rem;">{txt}</span></div>"""
             return f'<span style="color:#a3a3a3;font-weight:500;font-size:0.84rem;">0.00</span>'
 
-        def _bar_html(atual, modelo, max_val):
-            """Mini horizontal bar: dark = modelo (target), light = atual."""
-            w_atual = (atual / max_val * 100) if max_val > 0 else 0
-            w_modelo = (modelo / max_val * 100) if max_val > 0 else 0
-            return f"""<div style="position:relative;height:6px;background:#ede9e3;border-radius:3px;width:100%;min-width:60px;">
-                <div style="position:absolute;top:0;left:0;height:100%;width:{w_atual:.1f}%;background:rgba(99,13,36,0.18);border-radius:3px;"></div>
-                <div style="position:absolute;top:0;left:0;height:100%;width:{w_modelo:.1f}%;background:{TAG_VERMELHO};border-radius:3px;opacity:0.7;"></div>
-            </div>"""
-
-        max_val = max(df["Atual (%)"].max(), df["Modelo (%)"].max(), 1)
         rows_html = ""
         for i, row in df.iterrows():
             bg = "#fafaf8" if i % 2 == 0 else "#ffffff"
@@ -1459,7 +1449,6 @@ if os.path.exists(_carteira_atual_path):
                 <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:center;font-size:0.84rem;font-weight:700;color:{TAG_AZUL_ESCURO};">{row['Atual (%)']:.2f}%</td>
                 <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:center;font-size:0.84rem;color:#6a6864;font-weight:500;">{row['Modelo (%)']:.2f}%</td>
                 <td style="padding:11px 16px;border-bottom:1px solid #ede9e3;text-align:center;">{_diff_cell(diff_val)}</td>
-                <td style="padding:11px 12px;border-bottom:1px solid #ede9e3;vertical-align:middle;">{_bar_html(row['Atual (%)'], row['Modelo (%)'], max_val)}</td>
             </tr>"""
 
         # Totals row
@@ -1471,7 +1460,6 @@ if os.path.exists(_carteira_atual_path):
             <td style="padding:12px 16px;text-align:center;font-weight:700;font-size:0.85rem;color:{TAG_AZUL_ESCURO};border-top:2px solid {TAG_VERMELHO};">{tot_atual:.2f}%</td>
             <td style="padding:12px 16px;text-align:center;font-weight:700;font-size:0.85rem;color:#6a6864;border-top:2px solid {TAG_VERMELHO};">{tot_modelo:.2f}%</td>
             <td style="padding:12px 16px;text-align:center;border-top:2px solid {TAG_VERMELHO};">{_diff_cell(tot_diff)}</td>
-            <td style="border-top:2px solid {TAG_VERMELHO};"></td>
         </tr>"""
 
         html = f"""
@@ -1487,7 +1475,6 @@ if os.path.exists(_carteira_atual_path):
                         <th style="padding:11px 16px;text-align:center;font-size:0.72rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid #e0ddd5;">Atual</th>
                         <th style="padding:11px 16px;text-align:center;font-size:0.72rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid #e0ddd5;">Modelo</th>
                         <th style="padding:11px 16px;text-align:center;font-size:0.72rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid #e0ddd5;">Diferença</th>
-                        <th style="padding:11px 12px;text-align:center;font-size:0.72rem;font-weight:700;color:{TAG_CINZA};text-transform:uppercase;letter-spacing:0.07em;border-bottom:2px solid #e0ddd5;min-width:80px;"></th>
                     </tr>
                 </thead>
                 <tbody>{rows_html}</tbody>
