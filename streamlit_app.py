@@ -1247,7 +1247,7 @@ st.plotly_chart(fig6, use_container_width=True)
 section_title("Retornos por Período")
 st.caption("Retorno da carteira e benchmarks em diferentes horizontes de tempo.")
 
-merged_full = build_merged(port_full, ibov_raw, cdi_raw, fia_raw, imab_raw)
+merged_full = build_merged(active_port, ibov_raw, cdi_raw, fia_raw, imab_raw)
 
 # Carteira Modelo on merged_full
 if show_cm:
