@@ -478,19 +478,24 @@ def style_table(df, highlight_best=False):
         # Find best value in this row (for highlight)
         best_col = -1
         if highlight_best and len(row) > 1:
+            metric_name = str(row.iloc[0]).strip().lower() if len(row) > 0 else ""
+            lower_is_better = any(k in metric_name for k in ["volatilidade", "drawdown"])
             numeric_vals = []
             for j, val in enumerate(row):
                 if j == 0:
                     numeric_vals.append(None)
                     continue
                 try:
-                    v = str(val).replace("%", "").replace(",", ".").replace("\u2014", "")
+                    v = str(val).replace("%", "").replace(",", ".").replace("\u2014", "").replace("~", "")
                     numeric_vals.append(float(v) if v.strip() else None)
                 except (ValueError, AttributeError):
                     numeric_vals.append(None)
             valid = [(j, v) for j, v in enumerate(numeric_vals) if v is not None]
             if valid:
-                best_col = max(valid, key=lambda x: x[1])[0]
+                if lower_is_better:
+                    best_col = min(valid, key=lambda x: abs(x[1]))[0]
+                else:
+                    best_col = max(valid, key=lambda x: x[1])[0]
         html += '<tr>'
         for j, val in enumerate(row):
             fw = "600" if j == 0 else "400"
